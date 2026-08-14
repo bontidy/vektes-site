@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vektes — Features</title>
+<meta name="description" content="Every feature of the Vektes settlement protocol: final & scheduled transfers, dedup codes, recipient rejection, in-kind fees, claim-by-link, and airdrops. What's live (v1) and what's coming in v2." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/features.html" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Vektes" />
+<meta property="og:url" content="https://vektes.com/features.html" />
+<meta property="og:title" content="Vektes — Features" />
+<meta property="og:description" content="Every feature of the Vektes settlement protocol — what's live in v1 and what's coming in v2." />
+<meta property="og:image" content="https://vektes.com/og-image.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<style>
+  :root{
+    --paper:#edf1ef; --surface:#f7faf8; --raise:#ffffff;
+    --ink:#0e1c1a; --ink-2:#3c4b49; --ink-3:#6d7d7a;
+    --line:rgba(14,28,26,.13); --line-2:rgba(14,28,26,.07);
+    --accent:#0c8f6b; --accent-ink:#0a6f53; --accent-wash:rgba(12,143,107,.09);
+    --clay:#b4633a; --clay-ink:#9a4f2c; --clay-wash:rgba(180,99,58,.10);
+    --font-mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --maxw:1120px;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#0b1413; --surface:#10201d; --raise:#132520;
+    --ink:#e9eeeb; --ink-2:#9db0ac; --ink-3:#6f827e;
+    --line:rgba(233,238,235,.14); --line-2:rgba(233,238,235,.07);
+    --accent:#24b98c; --accent-ink:#4fd3a8; --accent-wash:rgba(36,185,140,.12);
+    --clay:#ce8256; --clay-ink:#e0996e; --clay-wash:rgba(206,130,86,.14);
+  }}
+  :root[data-theme="light"]{--paper:#edf1ef;--surface:#f7faf8;--raise:#fff;--ink:#0e1c1a;--ink-2:#3c4b49;--ink-3:#6d7d7a;--line:rgba(14,28,26,.13);--line-2:rgba(14,28,26,.07);--accent:#0c8f6b;--accent-ink:#0a6f53;--accent-wash:rgba(12,143,107,.09);--clay:#b4633a;--clay-ink:#9a4f2c;--clay-wash:rgba(180,99,58,.10)}
+  :root[data-theme="dark"]{--paper:#0b1413;--surface:#10201d;--raise:#132520;--ink:#e9eeeb;--ink-2:#9db0ac;--ink-3:#6f827e;--line:rgba(233,238,235,.14);--line-2:rgba(233,238,235,.07);--accent:#24b98c;--accent-ink:#4fd3a8;--accent-wash:rgba(36,185,140,.12);--clay:#ce8256;--clay-ink:#e0996e;--clay-wash:rgba(206,130,86,.14)}
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;letter-spacing:.005em}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  a{color:inherit}
+  h1,h2,h3{font-family:var(--font-mono);font-weight:700;letter-spacing:-.02em;text-wrap:balance;margin:0}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-ink)}
+
+  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line-2)}
+  .nav{display:flex;align-items:center;gap:20px;height:66px}
+  .brand{font-family:var(--font-mono);font-weight:700;letter-spacing:.24em;font-size:15px;text-decoration:none;display:flex;align-items:center;gap:10px}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .nav .spacer{flex:1}
+  .nav a.link{display:none;text-decoration:none;color:var(--ink-2);font-size:14px;font-family:var(--font-mono);letter-spacing:.02em}
+  .nav a.link:hover{color:var(--ink)}
+  @media(min-width:860px){.nav a.link{display:inline}}
+  .pill{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);border:1px solid var(--line);padding:5px 10px;border-radius:100px;display:inline-flex;gap:7px;align-items:center;white-space:nowrap}
+  .pill .live{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:14px;font-weight:600;letter-spacing:.02em;text-decoration:none;padding:12px 18px;border-radius:9px;border:1px solid var(--line);color:var(--ink);background:var(--raise);transition:transform .12s,border-color .12s}
+  .btn:hover{transform:translateY(-1px);border-color:var(--ink-3)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  @media(prefers-color-scheme:dark){.btn.primary{color:#04120d}}
+  :root[data-theme="dark"] .btn.primary{color:#04120d}
+
+  .intro{padding:64px 0 20px}
+  .intro h1{font-size:clamp(34px,5.4vw,56px);line-height:1.04;margin:16px 0 0}
+  .intro .lede{color:var(--ink-2);font-size:clamp(17px,2.1vw,20px);max-width:56ch;margin:22px 0 0}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+
+  .tag{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:100px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line)}
+  .tag .d{width:7px;height:7px;border-radius:50%}
+  .tag.live{color:var(--accent-ink);background:var(--accent-wash);border-color:transparent}
+  .tag.live .d{background:var(--accent)}
+  .tag.v2{color:var(--clay-ink);background:var(--clay-wash);border-color:transparent}
+  .tag.v2 .d{background:var(--clay)}
+
+  section{border-top:1px solid var(--line-2)}
+  .sec{padding:56px 0}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+  .sec-head h2{font-size:clamp(23px,3.2vw,32px)}
+  .lede{color:var(--ink-2);max-width:64ch}
+  .sec .lede.small{margin:0 0 30px;font-size:16px}
+
+  .grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:14px;overflow:hidden}
+  @media(min-width:680px){.grid{grid-template-columns:1fr 1fr}}
+  @media(min-width:980px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  .cell{background:var(--surface);padding:24px}
+  .cell .lab{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);display:flex;align-items:center;gap:9px}
+  .cell.v2 .lab{color:var(--clay-ink)}
+  .cell h3{font-size:18px;margin:12px 0 8px}
+  .cell p{color:var(--ink-2);font-size:15px;margin:0}
+
+  .feenote{color:var(--ink-2);font-size:15.5px;max-width:66ch}
+  .feenote b{color:var(--ink)}
+  .feenote+.feenote{margin-top:14px}
+
+  .cols{display:grid;grid-template-columns:1fr;gap:34px}
+  @media(min-width:820px){.cols{grid-template-columns:1fr 1fr}}
+  .factlist{list-style:none;margin:0;padding:0}
+  .factlist li{display:flex;gap:14px;padding:12px 0;border-top:1px solid var(--line-2);font-size:15px;color:var(--ink-2)}
+  .factlist li:first-child{border-top:none}
+  .factlist b{color:var(--ink);font-family:var(--font-mono);font-weight:600;min-width:96px;display:inline-block;font-size:13px;letter-spacing:.03em}
+
+  footer{border-top:1px solid var(--line);padding:48px 0 40px;margin-top:8px}
+  .foot{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
+  .foot a{color:var(--ink-2);text-decoration:none;font-family:var(--font-mono);font-size:14px}
+  .foot a:hover{color:var(--ink)}
+  .disc{margin-top:28px;padding-top:20px;border-top:1px solid var(--line-2);color:var(--ink-3);font-size:12.5px;line-height:1.6;max-width:80ch}
+  .disc b{color:var(--ink-2)}
+</style>
+</head>
+<body id="top">
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/#protocol">Protocol</a>
+    <a class="link" href="/#how">How it works</a>
+    <a class="link" href="/#fees">Fees</a>
+    <a class="link" href="/#token">$VEK</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+    <span class="pill"><span class="live"></span>Ethereum mainnet</span>
+  </div>
+</header>
+
+<div class="wrap intro">
+  <div class="eyebrow">Features</div>
+  <h1>Everything Vektes&nbsp;does</h1>
+  <p class="lede">Vektes is a neutral settlement primitive for <b>final, scheduled, deduplicated</b> payments on Ethereum — embedded by platforms, usable directly. Here's the full feature set.</p>
+  <div class="legend">
+    <span class="tag live"><span class="d"></span>Live · v1 mainnet</span>
+    <span class="tag v2"><span class="d"></span>v2 · built &amp; tested, pending re-audit</span>
+  </div>
+</div>
+
+<!-- CORE PRIMITIVES -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Core</div><h2>Settlement primitives</h2><span class="tag live"><span class="d"></span>Live · in v1 &amp; v2</span></div>
+  <p class="lede small">The building blocks every Vektes payment is made of.</p>
+  <div class="grid">
+    <div class="cell"><div class="lab">Assets</div><h3>Multi-asset transfers</h3><p>Native ETH, USDC, USDT and other curated ERC-20s.</p></div>
+    <div class="cell"><div class="lab">Dedup</div><h3>Unique codes, no doubles</h3><p>Every transfer carries a per-recipient code; the contract rejects any reuse.</p></div>
+    <div class="cell"><div class="lab">Speed</div><h3>Instant transfers</h3><p>A zero settlement date delivers in the same transaction.</p></div>
+    <div class="cell"><div class="lab">Escrow</div><h3>Scheduled settlement</h3><p>Hold funds on-chain until a future date — Net-30, payroll, milestones — no third party.</p></div>
+    <div class="cell"><div class="lab">Finality</div><h3>Sender irrevocability</h3><p>Once sent, a payment can't be cancelled, reversed, or redirected. No chargebacks.</p></div>
+    <div class="cell"><div class="lab">Consent</div><h3>Recipient rejection</h3><p>The recipient can decline a pending transfer, auto-refunding the sender.</p></div>
+    <div class="cell"><div class="lab">Fees</div><h3>Volume-tiered, free tier</h3><p>Fee tier set by monthly USD volume (Chainlink-priced); free under $10K/month.</p></div>
+    <div class="cell"><div class="lab">Safety</div><h3>Curated &amp; solvent</h3><p>Standard ERC-20s only; balance-delta accounting stays solvent against odd tokens.</p></div>
+    <div class="cell"><div class="lab">Controls</div><h3>Pausable, Safe-owned</h3><p>New transfers can be paused (exits never trap funds); owned by a 2-of-3 Gnosis Safe.</p></div>
+  </div>
+</div></section>
+
+<!-- V2 NEW -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Next</div><h2>New in v2</h2><span class="tag v2"><span class="d"></span>Built &amp; tested · pending re-audit</span></div>
+  <p class="lede small">Two adoption barriers fixed — the claim-UX and the "must hold $VEK to pay a fee" friction — plus new ways to pay.</p>
+  <div class="grid">
+    <div class="cell v2"><div class="lab">§1 · Release</div><h3>Permissionless push-release</h3><p>After the date, anyone can push funds to the fixed recipient — no more "forgot to claim." Batch-release many at once.</p></div>
+    <div class="cell v2"><div class="lab">§5 · Fees</div><h3>In-kind fees + buy-and-burn</h3><p>The fee is taken in the asset you send (stablecoin/ETH), not $VEK. Accrued fees buy back and burn $VEK off-chain.</p></div>
+    <div class="cell v2"><div class="lab">§7 · Utility</div><h3>Free $VEK-to-$VEK</h3><p>Owner-flagged assets skip the oracle and fee entirely — real in-app $VEK utility, zero oracle risk.</p></div>
+    <div class="cell v2"><div class="lab">§4 · UX</div><h3>One-signature sends</h3><p>EIP-2612 permit: pay in a single signed action, no separate approval and no scary prompts.</p></div>
+    <div class="cell v2"><div class="lab">§9 · Timing</div><h3>Shorten a due date</h3><p>The sender can bring a scheduled payment earlier (never later) — accelerate without breaking finality.</p></div>
+    <div class="cell v2"><div class="lab">§10 · Links</div><h3>Send by link — no address</h3><p>Send to a shareable link; the recipient claims to any wallet. Front-run-safe, with sender-reclaim if a link is lost.</p></div>
+    <div class="cell v2"><div class="lab">§11 · Airdrops</div><h3>Airdrop campaigns</h3><p>Fund one pool under a link; many recipients each claim a fixed amount, once per wallet. No wallets collected upfront.</p></div>
+    <div class="cell v2"><div class="lab">Launch</div><h3>Fee-free at start</h3><p>v2 launches with all tiers at 0 bps; fees + buy-and-burn stay dormant until switched on. $VEK, vesting &amp; liquidity unchanged.</p></div>
+  </div>
+</div></section>
+
+<!-- FEE MODEL -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Fees</div><h2>How the fee works</h2></div>
+  <p class="feenote"><b>v1 (live):</b> the fee is charged separately in <b>$VEK</b> — the recipient always receives 100% of the transfer. Half is burned, half goes to the treasury.</p>
+  <p class="feenote"><b>v2:</b> the fee is taken <b>in the asset being transferred</b>, so users never need to hold $VEK. Fees accrue on-chain and are swept to the treasury; $VEK is then <b>bought back and burned</b> — the same value accrual, without the friction. Both keep the <b>free tier under $10K/month</b>.</p>
+</div></section>
+
+<!-- TOKEN & ECOSYSTEM -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">$VEK</div><h2>Token &amp; ecosystem</h2></div>
+  <div class="cols">
+    <ul class="factlist">
+      <li><b>Supply</b> Fixed 1,000,000,000 — no mint function, ever.</li>
+      <li><b>Standard</b> ERC-20 with EIP-2612 permit; burnable.</li>
+      <li><b>Locks</b> Team/insider tokens vested (1-yr cliff + 3-yr linear); liquidity locked 12 months.</li>
+      <li><b>Market</b> Uniswap v3 VEK/USDT pool.</li>
+    </ul>
+    <ul class="factlist">
+      <li><b>Audit</b> CertiK — v1 (audit-1.1.0): 0 Critical / 0 Major. v2 frozen for re-audit.</li>
+      <li><b>Owner</b> 2-of-3 Gnosis Safe multisig.</li>
+      <li><b>App</b> Public dApp at app.vektes.com.</li>
+      <li><b>Platform</b> Alaru settles gig-work payouts through Vektes.</li>
+    </ul>
+  </div>
+</div></section>
+
+<!-- SCOPE -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Scope</div><h2>A primitive, not a product</h2></div>
+  <p class="feenote">Vektes deliberately <b>omits</b> arbitration, milestones/partial payments, streaming, identity/KYC, and refunds-on-non-delivery — these need trusted parties and belong at the <b>platform layer</b> (Alaru provides disputes, milestones, identity and fiat rails, settling final payments through Vektes). With an untrusted counterparty, bare Vektes is <b>finality-only</b>.</p>
+  <p class="feenote"><b>Deferred to a later v2.x:</b> a mandatory claim-secret (hashlock 2FA) on every transfer, and a Timelock + pause-only Guardian governance layer.</p>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <a class="brand" href="/" style="display:flex;align-items:center;gap:10px"><span class="dot" style="width:11px;height:11px;border-radius:3px;background:var(--accent);box-shadow:0 0 0 3px var(--accent-wash);display:inline-block"></span>VEKTES</a>
+    <div style="display:flex;flex-wrap:wrap;gap:20px">
+      <a href="/">Home</a>
+      <a href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+      <a href="/Vektes_Protocol_Whitepaper.pdf" target="_blank" rel="noopener">Whitepaper</a>
+    </div>
+  </div>
+  <div class="disc"><b>Disclaimer.</b> Vektes is experimental protocol software provided “as is”, without warranties. Nothing here is financial, legal, or tax advice. On-chain transactions are irreversible; the bare protocol is finality-only and offers no recourse if a counterparty fails to deliver. v2 features are in development and pending audit — details may change.</div>
+</div></footer>
+
+</body>
+</html>
