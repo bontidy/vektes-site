@@ -1,0 +1,11 @@
+{
+  "name": "vektes-site",
+  "private": true,
+  "description": "Static site for vektes.com. `npm run docs` regenerates the /docs section from docs-src/*.md.",
+  "scripts": {
+    "docs": "node build-docs.js"
+  },
+  "devDependencies": {
+    "marked": "^12.0.2"
+  }
+}
