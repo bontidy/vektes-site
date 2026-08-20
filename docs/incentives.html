@@ -1,0 +1,1548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vektes Protocol ($VEK) Token Distribution &amp;amp; Incentive Program — Vektes Docs</title>
+<meta name="description" content="Draft RFC: transaction-mining, liquidity, developer-grant, and referral incentive programs for $VEK." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/incentives" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+      <a href="/docs/incentives" aria-current="page">Incentive Programs (RFC)</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="vektes-protocol-vek-token-distribution-incentive-program">Vektes Protocol ($VEK) Token Distribution &amp; Incentive Program</h1>
+<p><strong>Version:</strong> 1.0 — Governance Proposal Draft<br><strong>Date:</strong> August 20, 2026<br><strong>Status:</strong> RFC (Request for Comments)<br><strong>Author:</strong> Vektes Core Team  </p>
+<hr>
+<blockquote>
+<p>⚠️ <strong>Draft for discussion — not active.</strong> This is an RFC governance proposal. No program described here is live, funded, or committed; all figures, budgets, and parameters are proposals subject to change through governance. Legal and entity details (§5.1) are <strong>pending counsel review and authoritative revision</strong>. On-chain supply figures are approximate snapshots — see the live breakdown at <a href="https://vektes.com/vesting">vektes.com/vesting</a>.</p>
+</blockquote>
+<h2 id="executive-summary">Executive Summary</h2>
+<p>Vektes is a payment settlement protocol on Ethereum mainnet enabling irrevocable transfers with deduplication codes and defined settlement dates. The $VEK token (1B fixed supply) serves as the protocol&#39;s fee token. With near-zero usage today and a true free float of only <del>608K VEK (</del>0.06% of supply), this proposal outlines a comprehensive incentive program to bootstrap real protocol adoption while maintaining strict compliance guardrails.</p>
+<p><strong>Core Principle:</strong> Every token distributed must be earned through genuine protocol utility — never for purchasing, holding, or speculating on VEK. All incentives reward <em>usage of the protocol</em>, not <em>ownership of the token</em>.</p>
+<hr>
+<h2 id="token-context-constraints">Token Context &amp; Constraints</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Total Supply</td>
+<td>1,000,000,000 VEK (fixed)</td>
+</tr>
+<tr>
+<td>Undistributed (Gnosis Safe 2-of-3)</td>
+<td>739,900,000 VEK</td>
+</tr>
+<tr>
+<td>True Free Float</td>
+<td><del>608,000 VEK (</del>0.06%)</td>
+</tr>
+<tr>
+<td>Community Allocation</td>
+<td>400,000,000 VEK</td>
+</tr>
+<tr>
+<td>Treasury/DAO Allocation</td>
+<td>250,000,000 VEK</td>
+</tr>
+<tr>
+<td>Liquidity Allocation</td>
+<td>90,000,000 VEK (remaining)</td>
+</tr>
+<tr>
+<td>Fee Tiers</td>
+<td>By monthly sender volume: free ≤$10K/mo, then 0.005% / 0.01% / 0.02% (<strong>currently all 0 — fee-free launch</strong>)</td>
+</tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>Note on allocations:</strong> the figures above reflect the <strong>planned</strong> distribution. On-chain today, undistributed tokens (including these program pools) sit in the treasury multisig, and a separate 250M is locked in insider vesting (UNCX, 1-yr cliff + 3-yr linear). Program budgets draw from the planned Community / Liquidity pools as those tokens are released. Live breakdown: <a href="https://vektes.com/vesting">vektes.com/vesting</a>.</p>
+</blockquote>
+<p><strong>Legal Constraints:</strong></p>
+<ul>
+<li>US-based founder; LLC just filed</li>
+<li>No payments for buying/holding tokens</li>
+<li>All rewards tied to protocol usage or service provision</li>
+<li>Vesting and lockups on material distributions</li>
+<li>No yield/return promises on token holdings</li>
+</ul>
+<hr>
+<h2 id="1-transaction-mining-program">1. Transaction Mining Program</h2>
+<h3 id="1-1-design-philosophy">1.1 Design Philosophy</h3>
+<p>Transaction mining rewards users who execute <em>real settlement transactions</em> through the Vektes protocol. Rewards are proportional to actual transfer volume processed, not token holdings. This is analogous to frequent-flyer miles — you earn by using the service, not by holding airline stock.</p>
+<h3 id="1-2-reward-formula">1.2 Reward Formula</h3>
+<pre><code>Monthly Reward (user) = (User Settled Volume / Total Network Settled Volume) × Monthly Pool × Tier Multiplier × Time Bonus
+</code></pre>
+<p><strong>Where:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Definition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>User Settled Volume</td>
+<td>Sum of all irrevocably settled transfers by this address in the epoch</td>
+</tr>
+<tr>
+<td>Total Network Settled Volume</td>
+<td>Sum of all settled transfers across all users in the epoch</td>
+</tr>
+<tr>
+<td>Monthly Pool</td>
+<td>Fixed VEK budget for that month (see emission schedule)</td>
+</tr>
+<tr>
+<td>Tier Multiplier</td>
+<td>1.0x for Tier 1 (≤$100K), 0.8x for Tier 2 (≤$1M), 0.5x for Tier 3 (&gt;$1M)</td>
+</tr>
+<tr>
+<td>Time Bonus</td>
+<td>1.0x base; +0.1x for each consecutive month of activity (max 1.5x at month 6+)</td>
+</tr>
+</tbody></table></div>
+<blockquote>
+<p>The tier bands here follow the protocol&#39;s fee tiers, which are keyed to a sender&#39;s <strong>rolling monthly settled volume</strong> (not per-transaction size).</p>
+</blockquote>
+<p><strong>Degressive Tier Multiplier Rationale:</strong> Smaller users get proportionally more reward per dollar settled, incentivizing broad adoption over whale concentration. Large users still earn substantial absolute rewards but cannot dominate the pool.</p>
+<h3 id="1-3-per-user-caps">1.3 Per-User Caps</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Cap Type</th>
+<th>Limit</th>
+<th>Rationale</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monthly per-address cap</td>
+<td>500,000 VEK</td>
+<td>Prevents single entity from draining pool</td>
+</tr>
+<tr>
+<td>Daily per-address cap</td>
+<td>25,000 VEK</td>
+<td>Prevents burst gaming</td>
+</tr>
+<tr>
+<td>Minimum transaction size</td>
+<td>$100</td>
+<td>Filters dust/spam transactions</td>
+</tr>
+<tr>
+<td>Maximum reward per transaction</td>
+<td>10,000 VEK</td>
+<td>Caps individual tx gaming</td>
+</tr>
+</tbody></table></div>
+<h3 id="1-4-anti-gaming-measures">1.4 Anti-Gaming Measures</h3>
+<ol>
+<li><p><strong>Minimum Settlement Time:</strong> Only transactions with settlement dates ≥ 24 hours from initiation qualify. Instant-settle transactions earn 0.5x multiplier. This prevents wash-trading loops.</p>
+</li>
+<li><p><strong>Cooldown Between Transactions:</strong> Same sender→receiver pair limited to 1 qualifying transaction per 4-hour window. Burst patterns from same pair are flagged.</p>
+</li>
+<li><p><strong>Sybil Resistance:</strong></p>
+<ul>
+<li>Addresses must have ≥ 3 unique counterparties per month to qualify for full rewards</li>
+<li>Addresses with &lt;3 counterparties receive 0.25x multiplier</li>
+<li>Cluster analysis: if a group of addresses shows circular flow patterns (A→B→C→A), all flagged for manual review</li>
+<li>New addresses (&lt; 30 days on-chain history) receive 0.5x multiplier for first 60 days</li>
+</ul>
+</li>
+<li><p><strong>Deduplication Code Validation:</strong> Each dedup code must be unique. Repeated use of similar structured codes from same sender triggers review.</p>
+</li>
+<li><p><strong>Volume Velocity Check:</strong> If an address&#39;s monthly volume exceeds 10x its previous month with no organic growth pattern, rewards are escrowed pending review (14-day hold).</p>
+</li>
+<li><p><strong>Clawback Provision:</strong> Gaming detected post-distribution triggers clawback from vesting remainder (see §5).</p>
+</li>
+</ol>
+<h3 id="1-5-budget-phase-schedule">1.5 Budget &amp; Phase Schedule</h3>
+<p><strong>Total Allocation:</strong> 200,000,000 VEK (from 400M community pool)</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Months</th>
+<th>Monthly Budget</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Phase 1: Bootstrap</td>
+<td>1–6</td>
+<td>12,000,000 VEK/mo</td>
+<td>High emissions to seed initial usage</td>
+</tr>
+<tr>
+<td>Phase 2: Growth</td>
+<td>7–12</td>
+<td>8,000,000 VEK/mo</td>
+<td>Reduce as organic usage grows</td>
+</tr>
+<tr>
+<td>Phase 3: Maturity</td>
+<td>13–18</td>
+<td>5,000,000 VEK/mo</td>
+<td>Further reduction</td>
+</tr>
+<tr>
+<td>Phase 4: Sustain</td>
+<td>19–24</td>
+<td>3,000,000 VEK/mo</td>
+<td>Minimal ongoing incentive</td>
+</tr>
+<tr>
+<td><strong>Total over 24 months</strong></td>
+<td></td>
+<td><strong>168,000,000 VEK</strong></td>
+<td>32M reserved for extensions/adjustments</td>
+</tr>
+</tbody></table></div>
+<p><strong>Vesting:</strong> All transaction mining rewards vest linearly over 90 days from the end of each monthly epoch. Users can claim 1/3 immediately, 1/3 at day 30, 1/3 at day 90.</p>
+<h3 id="1-6-epoch-mechanics">1.6 Epoch Mechanics</h3>
+<ul>
+<li><strong>Epoch Length:</strong> Monthly (calendar month, UTC)</li>
+<li><strong>Snapshot:</strong> Continuous — all settled transactions counted in real-time</li>
+<li><strong>Calculation:</strong> Off-chain aggregation published on-chain as Merkle root by day 5 of following month</li>
+<li><strong>Claim Window:</strong> 90 days from publication (unclaimed tokens return to pool)</li>
+<li><strong>Dispute Period:</strong> 7 days post-publication for challenges</li>
+</ul>
+<hr>
+<h2 id="2-liquidity-incentive-program">2. Liquidity Incentive Program</h2>
+<h3 id="2-1-design-philosophy">2.1 Design Philosophy</h3>
+<p>Deep liquidity enables real commerce — merchants and users need confidence they can acquire VEK to pay fees and exit positions without excessive slippage. This program rewards <em>sustained</em> liquidity provision, not mercenary farming.</p>
+<h3 id="2-2-target-pools">2.2 Target Pools</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pool</th>
+<th>Platform</th>
+<th>Target TVL</th>
+<th>Priority</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VEK/USDT</td>
+<td>Uniswap V3</td>
+<td>$500K–$2M</td>
+<td>Primary</td>
+</tr>
+<tr>
+<td>VEK/ETH</td>
+<td>Uniswap V3</td>
+<td>$250K–$1M</td>
+<td>Secondary</td>
+</tr>
+</tbody></table></div>
+<h3 id="2-3-reward-structure">2.3 Reward Structure</h3>
+<p><strong>Base Rewards:</strong></p>
+<pre><code>Weekly Reward (LP) = (LP&#39;s Time-Weighted Liquidity / Total Time-Weighted Liquidity) × Weekly Pool
+</code></pre>
+<p><strong>Concentrated Liquidity Bonus (Uniswap V3):</strong></p>
+<ul>
+<li>LPs providing liquidity within ±20% of current price: 1.5x multiplier</li>
+<li>LPs providing liquidity within ±50% of current price: 1.2x multiplier</li>
+<li>Wide range (full range): 1.0x base</li>
+</ul>
+<p><strong>Lock Duration Bonuses:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Lock Period</th>
+<th>Bonus Multiplier</th>
+<th>Early Exit Penalty</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>No lock (flexible)</td>
+<td>1.0x</td>
+<td>None</td>
+</tr>
+<tr>
+<td>30-day lock</td>
+<td>1.3x</td>
+<td>Forfeit 50% of accrued rewards</td>
+</tr>
+<tr>
+<td>90-day lock</td>
+<td>1.6x</td>
+<td>Forfeit 75% of accrued rewards</td>
+</tr>
+<tr>
+<td>180-day lock</td>
+<td>2.0x</td>
+<td>Forfeit 100% of accrued rewards</td>
+</tr>
+</tbody></table></div>
+<p><strong>Anti-Mercenary Design:</strong></p>
+<ul>
+<li>Lock bonuses make short-term farming unprofitable relative to longer commitments</li>
+<li>Early exit penalties redistribute forfeited rewards to remaining LPs</li>
+<li>Rewards calculated on <em>time-weighted</em> positions — adding liquidity for 1 hour before snapshot earns proportionally less</li>
+</ul>
+<h3 id="2-4-budget-phase-schedule">2.4 Budget &amp; Phase Schedule</h3>
+<p><strong>Total Allocation:</strong> 60,000,000 VEK (from 90M liquidity allocation; 30M reserved for future pools/CEX market-making)</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Months</th>
+<th>Monthly Budget</th>
+<th>Distribution</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Phase 1: Seeding</td>
+<td>1–6</td>
+<td>4,500,000 VEK/mo</td>
+<td>70% VEK/USDT, 30% VEK/ETH</td>
+</tr>
+<tr>
+<td>Phase 2: Stabilization</td>
+<td>7–12</td>
+<td>3,000,000 VEK/mo</td>
+<td>60% VEK/USDT, 40% VEK/ETH</td>
+</tr>
+<tr>
+<td>Phase 3: Maintenance</td>
+<td>13–18</td>
+<td>1,500,000 VEK/mo</td>
+<td>50/50 split</td>
+</tr>
+<tr>
+<td>Phase 4: Wind-down</td>
+<td>19–24</td>
+<td>750,000 VEK/mo</td>
+<td>Governance decides allocation</td>
+</tr>
+<tr>
+<td><strong>Total over 24 months</strong></td>
+<td></td>
+<td><strong>58,500,000 VEK</strong></td>
+<td>1.5M reserved</td>
+</tr>
+</tbody></table></div>
+<h3 id="2-5-tvl-circuit-breakers">2.5 TVL Circuit Breakers</h3>
+<ul>
+<li>If TVL exceeds $5M in any pool, emissions for that pool reduce by 50% (sufficient depth achieved)</li>
+<li>If TVL drops below $100K, emissions increase by 25% from reserve (emergency liquidity support)</li>
+<li>Governance can adjust targets quarterly</li>
+</ul>
+<h3 id="2-6-vesting">2.6 Vesting</h3>
+<ul>
+<li>LP rewards accrue weekly</li>
+<li>50% claimable immediately at week end</li>
+<li>50% vests over 30 days</li>
+<li>Forfeited rewards from early exits are redistributed to active LPs in the following week</li>
+</ul>
+<hr>
+<h2 id="3-developer-grants-program">3. Developer Grants Program</h2>
+<h3 id="3-1-design-philosophy">3.1 Design Philosophy</h3>
+<p>Integrations drive protocol utility. Every new wallet, payment plugin, or ERP connector that supports Vektes creates a new on-ramp for transaction volume. Grants are paid for <em>delivered work</em>, not promises.</p>
+<h3 id="3-2-grant-tiers">3.2 Grant Tiers</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Grant Size (VEK equivalent)</th>
+<th>Target Projects</th>
+<th>Examples</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Micro</strong></td>
+<td>$5,000–$10,000</td>
+<td>Simple integrations, tools</td>
+<td>Block explorer plugin, SDK wrapper, documentation</td>
+</tr>
+<tr>
+<td><strong>Standard</strong></td>
+<td>$10,000–$25,000</td>
+<td>Meaningful integrations</td>
+<td>Wallet integration, payment button, invoice tool</td>
+</tr>
+<tr>
+<td><strong>Major</strong></td>
+<td>$25,000–$50,000</td>
+<td>Strategic integrations</td>
+<td>ERP connector (SAP, NetSuite), merchant platform plugin, cross-chain bridge</td>
+</tr>
+<tr>
+<td><strong>Flagship</strong></td>
+<td>$50,000–$100,000</td>
+<td>Ecosystem-defining</td>
+<td>Major payment processor integration, institutional custody support</td>
+</tr>
+</tbody></table></div>
+<p><em>VEK equivalent calculated at 30-day TWAP at time of milestone approval.</em></p>
+<h3 id="3-3-application-criteria">3.3 Application Criteria</h3>
+<p><strong>Minimum Requirements:</strong></p>
+<ol>
+<li>Open-source code (MIT or Apache 2.0 license)</li>
+<li>Clear project scope and timeline (max 6 months per grant)</li>
+<li>Demonstrated technical capability (GitHub history, prior work)</li>
+<li>Defined milestones with deliverables</li>
+<li>Commitment to 12-month maintenance post-delivery</li>
+</ol>
+<p><strong>Scoring Matrix (100 points):</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Criterion</th>
+<th>Weight</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Protocol Impact</td>
+<td>30</td>
+<td>Expected increase in transaction volume</td>
+</tr>
+<tr>
+<td>Technical Quality</td>
+<td>25</td>
+<td>Architecture, code quality, security</td>
+</tr>
+<tr>
+<td>Team Capability</td>
+<td>20</td>
+<td>Track record, relevant experience</td>
+</tr>
+<tr>
+<td>Ecosystem Fit</td>
+<td>15</td>
+<td>Fills a gap, non-duplicative</td>
+</tr>
+<tr>
+<td>Maintenance Plan</td>
+<td>10</td>
+<td>Long-term viability</td>
+</tr>
+</tbody></table></div>
+<p><strong>Threshold:</strong> Projects scoring ≥ 60/100 are eligible. Above 80 qualifies for expedited review.</p>
+<h3 id="3-4-milestone-based-disbursement">3.4 Milestone-Based Disbursement</h3>
+<p>All grants follow a milestone structure. No upfront payments.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Milestone</th>
+<th>Disbursement</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>M0: Acceptance</td>
+<td>10%</td>
+<td>Grant approved, scope finalized</td>
+</tr>
+<tr>
+<td>M1: Prototype</td>
+<td>20%</td>
+<td>Working proof-of-concept on testnet</td>
+</tr>
+<tr>
+<td>M2: Testnet Complete</td>
+<td>30%</td>
+<td>Full functionality on testnet, code audited</td>
+</tr>
+<tr>
+<td>M3: Mainnet Launch</td>
+<td>25%</td>
+<td>Deployed to mainnet, documentation complete</td>
+</tr>
+<tr>
+<td>M4: Adoption</td>
+<td>15%</td>
+<td>90 days post-launch with demonstrated usage</td>
+</tr>
+</tbody></table></div>
+<p><strong>Vesting:</strong> Grant disbursements vest over 180 days from each milestone approval. 25% immediate, remainder linear.</p>
+<h3 id="3-5-budget">3.5 Budget</h3>
+<p><strong>Total Allocation:</strong> 50,000,000 VEK (from 400M community pool)</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Budget</th>
+<th>Target Grants</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Year 1</td>
+<td>30,000,000 VEK</td>
+<td>15–25 grants across all tiers</td>
+</tr>
+<tr>
+<td>Year 2</td>
+<td>20,000,000 VEK</td>
+<td>10–15 grants (focus on Major/Flagship)</td>
+</tr>
+</tbody></table></div>
+<h3 id="3-6-grant-committee">3.6 Grant Committee</h3>
+<ul>
+<li>3-person committee (1 core team, 1 technical advisor, 1 community representative)</li>
+<li>Monthly review cycles (applications due by 15th, decisions by end of month)</li>
+<li>All decisions published with rationale</li>
+<li>Committee members recuse from projects they&#39;re involved in</li>
+<li>Transition to DAO governance vote once token distribution &gt;5% of supply in community hands</li>
+</ul>
+<hr>
+<h2 id="4-referral-ambassador-program">4. Referral / Ambassador Program</h2>
+<h3 id="4-1-design-philosophy">4.1 Design Philosophy</h3>
+<p>Referrals reward users who bring <em>real transaction volume</em> to the protocol — not sign-ups, not wallet connections, not token purchases. A referral is only valuable if it results in settled transfers.</p>
+<h3 id="4-2-mechanics">4.2 Mechanics</h3>
+<p><strong>Referral Link Generation:</strong></p>
+<ul>
+<li>Any address with ≥ 1 settled transaction can generate a referral code</li>
+<li>Referral code is embedded in the referred user&#39;s first transaction metadata</li>
+<li>Attribution persists for 12 months from first referred transaction</li>
+</ul>
+<p><strong>Reward Structure:</strong></p>
+<pre><code>Monthly Referral Reward = Σ (Referred User Monthly Volume × Referral Rate) × Pool Availability Factor
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Referred User Monthly Volume</th>
+<th>Referral Rate (paid to referrer)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>$0–$50,000</td>
+<td>0.001% of volume (in VEK)</td>
+</tr>
+<tr>
+<td>$50,001–$500,000</td>
+<td>0.0005% of volume (in VEK)</td>
+</tr>
+<tr>
+<td>$500,001+</td>
+<td>0.00025% of volume (in VEK)</td>
+</tr>
+</tbody></table></div>
+<p><em>Rates are degressive — referring a user who settles $1M/month earns the referrer ~$3.75/month in VEK, not enough to incentivize self-referral schemes but meaningful at scale.</em></p>
+<p><strong>Referred User Bonus:</strong></p>
+<ul>
+<li>Referred users receive a 10% boost to their own transaction mining rewards for the first 3 months</li>
+<li>This creates a positive-sum dynamic (both parties benefit from real usage)</li>
+</ul>
+<h3 id="4-3-anti-sybil-measures">4.3 Anti-Sybil Measures</h3>
+<ol>
+<li><strong>Volume Threshold:</strong> Referrer only earns when a referred address settles ≥ $1,000 cumulative volume</li>
+<li><strong>Unique Counterparty Requirement:</strong> Referred address must transact with ≥ 2 unique counterparties (not including the referrer) within 60 days</li>
+<li><strong>Self-Referral Detection:</strong> If referrer and referred addresses show circular flows, both are disqualified</li>
+<li><strong>Cap per Referrer:</strong> Maximum 50 qualifying referrals per address per quarter (prevents industrial farming)</li>
+<li><strong>Cap per Referrer Monthly Reward:</strong> 200,000 VEK/month maximum</li>
+</ol>
+<h3 id="4-4-ambassador-tier-high-volume-referrers">4.4 Ambassador Tier (High-Volume Referrers)</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Requirement</th>
+<th>Bonus</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Bronze</td>
+<td>5+ active referrals generating $50K+ combined monthly volume</td>
+<td>1.2x referral rate</td>
+</tr>
+<tr>
+<td>Silver</td>
+<td>15+ active referrals generating $250K+ combined monthly volume</td>
+<td>1.5x referral rate</td>
+</tr>
+<tr>
+<td>Gold</td>
+<td>30+ active referrals generating $1M+ combined monthly volume</td>
+<td>2.0x referral rate + governance voice</td>
+</tr>
+</tbody></table></div>
+<p><strong>&quot;Active referral&quot;</strong> = referred address with ≥ $5,000 settled volume in the trailing 30 days.</p>
+<h3 id="4-5-budget">4.5 Budget</h3>
+<p><strong>Total Allocation:</strong> 30,000,000 VEK (from 400M community pool)</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Months</th>
+<th>Monthly Cap</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Phase 1</td>
+<td>1–12</td>
+<td>1,500,000 VEK/mo</td>
+</tr>
+<tr>
+<td>Phase 2</td>
+<td>13–24</td>
+<td>1,000,000 VEK/mo</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td></td>
+<td><strong>30,000,000 VEK</strong></td>
+</tr>
+</tbody></table></div>
+<p><em>Actual spend depends on referral-driven volume. Unspent monthly caps roll into following months (within phase).</em></p>
+<h3 id="4-6-vesting">4.6 Vesting</h3>
+<ul>
+<li>Referral rewards vest over 60 days (50% at claim, 50% at day 60)</li>
+<li>Ambassador tier bonuses vest over 90 days</li>
+</ul>
+<hr>
+<h2 id="5-security-legal-governance-framework">5. Security, Legal &amp; Governance Framework</h2>
+<h3 id="5-1-legal-considerations">5.1 Legal Considerations</h3>
+<p><strong>Securities Risk Mitigation:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>No investment returns</td>
+<td>Rewards are earned through service/usage, never from holding</td>
+</tr>
+<tr>
+<td>No pooling of funds</td>
+<td>Users earn individually based on their own activity</td>
+</tr>
+<tr>
+<td>No expectation of profit from others&#39; efforts</td>
+<td>All rewards tied to user&#39;s own transactions/contributions</td>
+</tr>
+<tr>
+<td>Decentralization path</td>
+<td>Progressive decentralization from multisig → DAO governance</td>
+</tr>
+<tr>
+<td>Utility framing</td>
+<td>VEK is a fee token required to use the protocol, not an investment vehicle</td>
+</tr>
+</tbody></table></div>
+<p><strong>Specific Guardrails:</strong></p>
+<ol>
+<li><strong>No staking rewards</strong> for simply locking VEK (this implies passive returns on holdings)</li>
+<li><strong>No buyback-and-burn</strong> promises (implies price support)</li>
+<li><strong>No references to &quot;investment,&quot; &quot;returns,&quot; or &quot;appreciation&quot;</strong> in any program materials</li>
+<li><strong>All rewards denominated in VEK, not USD</strong> — participants earn tokens for services rendered to the network</li>
+<li><strong>LP rewards are compensation for the service of providing liquidity</strong> (market-making), not passive yield on token holdings</li>
+<li><strong>Transaction mining is compensation for bootstrapping network effects</strong> — analogous to early customer discounts</li>
+</ol>
+<p><strong>Recommended Legal Steps (Pre-Launch):</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> Finalize LLC formation and operating agreement</li>
+<li><input disabled="" type="checkbox"> Reconcile the program&#39;s entity / governing-law choices with the published Terms of Service (currently Cayman Islands) before launch</li>
+<li><input disabled="" type="checkbox"> Engage crypto-specialized securities counsel (budget: $25K–$50K)</li>
+<li><input disabled="" type="checkbox"> Obtain formal legal opinion on each incentive program</li>
+<li><input disabled="" type="checkbox"> Consider Regulation D / Regulation S exemptions for any advisory token grants</li>
+<li><input disabled="" type="checkbox"> Implement KYC/sanctions screening for grants &gt;$10K equivalent</li>
+<li><input disabled="" type="checkbox"> Establish terms of service with clear risk disclosures</li>
+<li><input disabled="" type="checkbox"> Consider DAO wrapper (e.g., Wyoming DAO LLC or Marshall Islands) for treasury governance</li>
+</ul>
+<h3 id="5-2-vesting-summary">5.2 Vesting Summary</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Program</th>
+<th>Immediate</th>
+<th>Vesting Period</th>
+<th>Cliff</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Transaction Mining</td>
+<td>33%</td>
+<td>90 days linear</td>
+<td>None</td>
+</tr>
+<tr>
+<td>LP Rewards</td>
+<td>50%</td>
+<td>30 days linear</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Developer Grants</td>
+<td>25%</td>
+<td>180 days linear</td>
+<td>Per milestone</td>
+</tr>
+<tr>
+<td>Referral Rewards</td>
+<td>50%</td>
+<td>60 days linear</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Ambassador Bonuses</td>
+<td>0%</td>
+<td>90 days linear</td>
+<td>30 days</td>
+</tr>
+</tbody></table></div>
+<h3 id="5-3-clawback-provisions">5.3 Clawback Provisions</h3>
+<p><strong>Trigger Events:</strong></p>
+<ol>
+<li>Confirmed gaming/wash trading (circular flows, Sybil clusters)</li>
+<li>Material misrepresentation in grant applications</li>
+<li>Failure to meet grant milestones without approved extension</li>
+<li>Sanctions/compliance violations discovered post-distribution</li>
+</ol>
+<p><strong>Clawback Mechanics:</strong></p>
+<ul>
+<li>Unvested tokens are automatically frozen upon trigger event</li>
+<li>14-day dispute resolution period</li>
+<li>If confirmed: unvested tokens returned to program pool</li>
+<li>If disputed: 3-person arbitration panel (1 core team, 1 community, 1 neutral)</li>
+<li>Vested and claimed tokens cannot be clawed back (legal limitation)</li>
+</ul>
+<p><strong>Penalty Tiers:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Action</th>
+<th>Cooling Off</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Minor (first offense, small amount)</td>
+<td>Forfeit unvested from current epoch</td>
+<td>30-day exclusion</td>
+</tr>
+<tr>
+<td>Moderate (pattern of gaming)</td>
+<td>Forfeit all unvested across programs</td>
+<td>90-day exclusion</td>
+</tr>
+<tr>
+<td>Severe (organized fraud)</td>
+<td>Forfeit all unvested + permanent ban + public disclosure</td>
+<td>Permanent</td>
+</tr>
+</tbody></table></div>
+<h3 id="5-4-governance-path">5.4 Governance Path</h3>
+<p><strong>Phase 1 (Months 1–6): Multisig Governance</strong></p>
+<ul>
+<li>2-of-3 Gnosis Safe controls all distributions</li>
+<li>Core team makes program decisions</li>
+<li>Community feedback via forum/Discord (advisory only)</li>
+<li>Monthly transparency reports published on-chain</li>
+</ul>
+<p><strong>Phase 2 (Months 7–12): Advisory Governance</strong></p>
+<ul>
+<li>Expand multisig to 3-of-5 (add 2 community signers)</li>
+<li>Token-weighted signaling votes on parameter changes</li>
+<li>Grant committee includes community representative</li>
+<li>Quarterly program reviews with public comment period</li>
+</ul>
+<p><strong>Phase 3 (Months 13–24): Progressive Decentralization</strong></p>
+<ul>
+<li>Deploy Governor contract (OpenZeppelin Governor or Compound-style)</li>
+<li>Token holders vote on emission rates, program parameters</li>
+<li>Core team retains emergency pause capability (time-locked, 48-hour delay)</li>
+<li>Target: full DAO control by month 24</li>
+</ul>
+<p><strong>Modification Authority:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Who Can Change</th>
+<th>Process</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monthly emission caps</td>
+<td>Multisig (Phase 1–2), DAO (Phase 3)</td>
+<td>7-day timelock</td>
+</tr>
+<tr>
+<td>Anti-gaming thresholds</td>
+<td>Core team (all phases)</td>
+<td>Immediate (security)</td>
+</tr>
+<tr>
+<td>New program creation</td>
+<td>Multisig (Phase 1–2), DAO (Phase 3)</td>
+<td>14-day vote + 7-day timelock</td>
+</tr>
+<tr>
+<td>Emergency pause</td>
+<td>Core team (all phases)</td>
+<td>Immediate, 48-hour auto-resume</td>
+</tr>
+<tr>
+<td>Program termination</td>
+<td>Multisig unanimity (Phase 1–2), DAO supermajority (Phase 3)</td>
+<td>30-day wind-down</td>
+</tr>
+</tbody></table></div>
+<h3 id="5-5-operational-security">5.5 Operational Security</h3>
+<ul>
+<li>All Merkle roots for reward distributions verified by 2+ independent off-chain aggregators</li>
+<li>Smart contract upgrades via transparent proxy with 7-day timelock</li>
+<li>Bug bounty program: up to 500,000 VEK for critical vulnerabilities in distribution contracts</li>
+<li>Monthly third-party audit of distribution calculations (publish methodology)</li>
+</ul>
+<hr>
+<h2 id="6-emission-schedule">6. Emission Schedule</h2>
+<h3 id="6-1-total-program-allocations">6.1 Total Program Allocations</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Program</th>
+<th>Allocation (VEK)</th>
+<th>Source Pool</th>
+<th>% of Total Supply</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Transaction Mining</td>
+<td>200,000,000</td>
+<td>Community (400M)</td>
+<td>20.0%</td>
+</tr>
+<tr>
+<td>Liquidity Incentives</td>
+<td>60,000,000</td>
+<td>Liquidity (90M)</td>
+<td>6.0%</td>
+</tr>
+<tr>
+<td>Developer Grants</td>
+<td>50,000,000</td>
+<td>Community (400M)</td>
+<td>5.0%</td>
+</tr>
+<tr>
+<td>Referral / Ambassador</td>
+<td>30,000,000</td>
+<td>Community (400M)</td>
+<td>3.0%</td>
+</tr>
+<tr>
+<td><strong>Total Incentive Programs</strong></td>
+<td><strong>340,000,000</strong></td>
+<td></td>
+<td><strong>34.0%</strong></td>
+</tr>
+</tbody></table></div>
+<p><strong>Remaining Reserves:</strong></p>
+<ul>
+<li>Community pool: 120,000,000 VEK (future programs, governance-directed)</li>
+<li>Liquidity pool: 30,000,000 VEK (future pools, CEX listings)</li>
+<li>Treasury/DAO: 250,000,000 VEK (ops, partnerships, contingency)</li>
+</ul>
+<h3 id="6-2-year-1-monthly-emission-schedule">6.2 Year 1 Monthly Emission Schedule</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Month</th>
+<th>Tx Mining</th>
+<th>LP Rewards</th>
+<th>Dev Grants</th>
+<th>Referral</th>
+<th><strong>Monthly Total</strong></th>
+<th>Cumulative</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>20,500,000</td>
+</tr>
+<tr>
+<td>2</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>41,000,000</td>
+</tr>
+<tr>
+<td>3</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>61,500,000</td>
+</tr>
+<tr>
+<td>4</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>82,000,000</td>
+</tr>
+<tr>
+<td>5</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>102,500,000</td>
+</tr>
+<tr>
+<td>6</td>
+<td>12,000,000</td>
+<td>4,500,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>20,500,000</strong></td>
+<td>123,000,000</td>
+</tr>
+<tr>
+<td>7</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>138,000,000</td>
+</tr>
+<tr>
+<td>8</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>153,000,000</td>
+</tr>
+<tr>
+<td>9</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>168,000,000</td>
+</tr>
+<tr>
+<td>10</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>183,000,000</td>
+</tr>
+<tr>
+<td>11</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>198,000,000</td>
+</tr>
+<tr>
+<td>12</td>
+<td>8,000,000</td>
+<td>3,000,000</td>
+<td>2,500,000</td>
+<td>1,500,000</td>
+<td><strong>15,000,000</strong></td>
+<td>213,000,000</td>
+</tr>
+<tr>
+<td><strong>Year 1 Total</strong></td>
+<td><strong>120,000,000</strong></td>
+<td><strong>45,000,000</strong></td>
+<td><strong>30,000,000</strong></td>
+<td><strong>18,000,000</strong></td>
+<td><strong>213,000,000</strong></td>
+<td></td>
+</tr>
+</tbody></table></div>
+<h3 id="6-3-year-2-quarterly-summary">6.3 Year 2 Quarterly Summary</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Quarter</th>
+<th>Tx Mining</th>
+<th>LP Rewards</th>
+<th>Dev Grants</th>
+<th>Referral</th>
+<th>Quarterly Total</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Q1 (M13–15)</td>
+<td>15,000,000</td>
+<td>4,500,000</td>
+<td>5,000,000</td>
+<td>3,000,000</td>
+<td>27,500,000</td>
+</tr>
+<tr>
+<td>Q2 (M16–18)</td>
+<td>15,000,000</td>
+<td>4,500,000</td>
+<td>5,000,000</td>
+<td>3,000,000</td>
+<td>27,500,000</td>
+</tr>
+<tr>
+<td>Q3 (M19–21)</td>
+<td>9,000,000</td>
+<td>2,250,000</td>
+<td>5,000,000</td>
+<td>3,000,000</td>
+<td>19,250,000</td>
+</tr>
+<tr>
+<td>Q4 (M22–24)</td>
+<td>9,000,000</td>
+<td>2,250,000</td>
+<td>5,000,000</td>
+<td>3,000,000</td>
+<td>19,250,000</td>
+</tr>
+<tr>
+<td><strong>Year 2 Total</strong></td>
+<td><strong>48,000,000</strong></td>
+<td><strong>13,500,000</strong></td>
+<td><strong>20,000,000</strong></td>
+<td><strong>12,000,000</strong></td>
+<td><strong>93,500,000</strong></td>
+</tr>
+</tbody></table></div>
+<h3 id="6-4-cumulative-distribution-24-months">6.4 Cumulative Distribution (24 Months)</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Program</th>
+<th>Year 1</th>
+<th>Year 2</th>
+<th>24-Month Total</th>
+<th>% of Allocation Used</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Transaction Mining</td>
+<td>120,000,000</td>
+<td>48,000,000</td>
+<td>168,000,000</td>
+<td>84% of 200M</td>
+</tr>
+<tr>
+<td>LP Rewards</td>
+<td>45,000,000</td>
+<td>13,500,000</td>
+<td>58,500,000</td>
+<td>97.5% of 60M</td>
+</tr>
+<tr>
+<td>Developer Grants</td>
+<td>30,000,000</td>
+<td>20,000,000</td>
+<td>50,000,000</td>
+<td>100% of 50M</td>
+</tr>
+<tr>
+<td>Referral</td>
+<td>18,000,000</td>
+<td>12,000,000</td>
+<td>30,000,000</td>
+<td>100% of 30M</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>213,000,000</strong></td>
+<td><strong>93,500,000</strong></td>
+<td><strong>306,500,000</strong></td>
+<td>90.1% of 340M</td>
+</tr>
+</tbody></table></div>
+<p><strong>Remaining after 24 months:</strong> 33,500,000 VEK in program reserves for extensions or new programs.</p>
+<h3 id="6-5-emission-decline-visualization">6.5 Emission Decline Visualization</h3>
+<pre><code>Monthly Emissions (VEK, millions)
+     
+ 20M |████████████
+     |████████████
+ 15M |████████████ ██████████████████
+     |████████████ ██████████████████
+ 10M |████████████ ██████████████████ ████████████
+     |████████████ ██████████████████ ████████████
+  5M |████████████ ██████████████████ ████████████ ████████████
+     |████████████ ██████████████████ ████████████ ████████████
+     +------------------------------------------------------------
+      M1-6 (20.5M)  M7-12 (15M)    M13-18 (9.2M)  M19-24 (6.4M)
+</code></pre>
+<h3 id="6-6-float-impact-analysis">6.6 Float Impact Analysis</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Timeframe</th>
+<th>Max New Float (if all claimed)</th>
+<th>New Float as % of Supply</th>
+<th>Cumulative Float</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Month 1</td>
+<td>20,500,000</td>
+<td>2.05%</td>
+<td>~21.2M (2.12%)</td>
+</tr>
+<tr>
+<td>Month 6</td>
+<td>20,500,000</td>
+<td>2.05%</td>
+<td>~124M (12.4%)</td>
+</tr>
+<tr>
+<td>Month 12</td>
+<td>15,000,000</td>
+<td>1.50%</td>
+<td>~214M (21.4%)</td>
+</tr>
+<tr>
+<td>Month 24</td>
+<td>6,417,000</td>
+<td>0.64%</td>
+<td>~307M (30.7%)</td>
+</tr>
+</tbody></table></div>
+<p><em>Note: Actual float will be lower due to vesting schedules, unclaimed rewards, and lock bonuses. Estimated realized float: 60–70% of distributed tokens at any given time.</em></p>
+<hr>
+<h2 id="7-kpis-success-metrics">7. KPIs &amp; Success Metrics</h2>
+<h3 id="7-1-primary-kpis">7.1 Primary KPIs</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Month 3 Target</th>
+<th>Month 6 Target</th>
+<th>Month 12 Target</th>
+<th>Month 24 Target</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Monthly Settled Volume</td>
+<td>$1M</td>
+<td>$10M</td>
+<td>$50M</td>
+<td>$250M</td>
+</tr>
+<tr>
+<td>Monthly Active Addresses</td>
+<td>50</td>
+<td>200</td>
+<td>1,000</td>
+<td>5,000</td>
+</tr>
+<tr>
+<td>Unique Counterparty Pairs</td>
+<td>100</td>
+<td>500</td>
+<td>2,500</td>
+<td>15,000</td>
+</tr>
+<tr>
+<td>Protocol Fee Revenue (VEK)</td>
+<td>5,000</td>
+<td>50,000</td>
+<td>500,000</td>
+<td>2,500,000</td>
+</tr>
+<tr>
+<td>Average Transaction Size</td>
+<td>$5,000</td>
+<td>$10,000</td>
+<td>$15,000</td>
+<td>$20,000</td>
+</tr>
+</tbody></table></div>
+<h3 id="7-2-program-specific-kpis">7.2 Program-Specific KPIs</h3>
+<p><strong>Transaction Mining:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (Month 12)</th>
+<th>Failure Threshold</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>% of volume from organic (non-incentivized) repeat users</td>
+<td>&gt;30%</td>
+<td>&lt;10%</td>
+</tr>
+<tr>
+<td>User retention (active 3+ consecutive months)</td>
+<td>&gt;40%</td>
+<td>&lt;15%</td>
+</tr>
+<tr>
+<td>Median transactions per active user per month</td>
+<td>5+</td>
+<td>&lt;2</td>
+</tr>
+<tr>
+<td>Sybil/gaming detection rate</td>
+<td>&lt;5% of claims flagged</td>
+<td>&gt;20% flagged</td>
+</tr>
+</tbody></table></div>
+<p><strong>Liquidity:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (Month 12)</th>
+<th>Failure Threshold</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>VEK/USDT TVL</td>
+<td>&gt;$1M</td>
+<td>&lt;$200K</td>
+</tr>
+<tr>
+<td>VEK/ETH TVL</td>
+<td>&gt;$500K</td>
+<td>&lt;$100K</td>
+</tr>
+<tr>
+<td>Average LP lock duration</td>
+<td>&gt;60 days</td>
+<td>&lt;14 days</td>
+</tr>
+<tr>
+<td>Slippage for $10K swap</td>
+<td>&lt;2%</td>
+<td>&gt;10%</td>
+</tr>
+<tr>
+<td>Number of unique LPs</td>
+<td>&gt;50</td>
+<td>&lt;10</td>
+</tr>
+</tbody></table></div>
+<p><strong>Developer Grants:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (Month 12)</th>
+<th>Failure Threshold</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Grants approved</td>
+<td>15+</td>
+<td>&lt;5</td>
+</tr>
+<tr>
+<td>Grants reaching M3 (mainnet)</td>
+<td>&gt;70%</td>
+<td>&lt;40%</td>
+</tr>
+<tr>
+<td>Integrations driving measurable volume</td>
+<td>&gt;50% of launched</td>
+<td>&lt;20%</td>
+</tr>
+<tr>
+<td>Developer satisfaction (survey)</td>
+<td>&gt;4/5</td>
+<td>&lt;3/5</td>
+</tr>
+</tbody></table></div>
+<p><strong>Referral Program:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Target (Month 12)</th>
+<th>Failure Threshold</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Active referrers</td>
+<td>100+</td>
+<td>&lt;20</td>
+</tr>
+<tr>
+<td>% of new users via referral</td>
+<td>&gt;30%</td>
+<td>&lt;10%</td>
+</tr>
+<tr>
+<td>Referred user 90-day retention</td>
+<td>&gt;50%</td>
+<td>&lt;20%</td>
+</tr>
+<tr>
+<td>Cost per acquired active user (in VEK)</td>
+<td>&lt;50,000 VEK</td>
+<td>&gt;200,000 VEK</td>
+</tr>
+</tbody></table></div>
+<h3 id="7-3-health-metrics-circuit-breakers">7.3 Health Metrics (Circuit Breakers)</h3>
+<p>These metrics trigger program review or pause if breached:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Red Flag</th>
+<th>Threshold</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Single address earning &gt;10% of monthly pool</td>
+<td>Automatic</td>
+<td>Cap enforcement + review</td>
+</tr>
+<tr>
+<td>&gt;30% of volume between &lt;10 address pairs</td>
+<td>Investigation</td>
+<td>14-day pause if confirmed gaming</td>
+</tr>
+<tr>
+<td>LP TVL drops &gt;50% in 7 days</td>
+<td>Alert</td>
+<td>Emergency emission increase from reserve</td>
+</tr>
+<tr>
+<td>&gt;50% of grants failing milestones</td>
+<td>Quarterly review</td>
+<td>Committee restructure, criteria revision</td>
+</tr>
+<tr>
+<td>Protocol fee revenue declining 3 months straight despite rising incentives</td>
+<td>Quarterly review</td>
+<td>Program restructure or pause</td>
+</tr>
+<tr>
+<td>Token price correlation &gt;0.9 with emission events</td>
+<td>Monitoring</td>
+<td>Legal counsel review</td>
+</tr>
+</tbody></table></div>
+<h3 id="7-4-reporting-transparency">7.4 Reporting &amp; Transparency</h3>
+<p><strong>Monthly Reports (Published On-Chain + Forum):</strong></p>
+<ul>
+<li>Total VEK distributed per program</li>
+<li>Number of unique recipients</li>
+<li>Top 10 recipients (addresses, no doxxing)</li>
+<li>Gaming attempts detected and resolved</li>
+<li>Protocol volume and fee metrics</li>
+<li>Float analysis and vesting status</li>
+</ul>
+<p><strong>Quarterly Reviews:</strong></p>
+<ul>
+<li>Program effectiveness assessment against KPIs</li>
+<li>Parameter adjustment proposals (if needed)</li>
+<li>Community feedback summary</li>
+<li>Legal/compliance status update</li>
+<li>Budget utilization vs. plan</li>
+</ul>
+<h3 id="7-5-continuation-criteria">7.5 Continuation Criteria</h3>
+<p>Programs continue if <strong>all</strong> of the following hold:</p>
+<ol>
+<li>At least 2 of 4 primary KPIs are on track for their targets</li>
+<li>No failure thresholds breached for 2+ consecutive months</li>
+<li>Cost per active user trending down (improving efficiency)</li>
+<li>Protocol fee revenue growing month-over-month (real adoption signal)</li>
+</ol>
+<p><strong>Program Sunset Triggers:</strong></p>
+<ul>
+<li>Protocol achieves self-sustaining volume (fees cover operational costs without incentives)</li>
+<li>24-month allocation fully distributed</li>
+<li>DAO governance votes to terminate/redirect remaining allocation</li>
+<li>Legal/regulatory change requiring program modification</li>
+</ul>
+<hr>
+<h2 id="appendix-a-implementation-checklist">Appendix A: Implementation Checklist</h2>
+<h3 id="pre-launch-weeks-1-4">Pre-Launch (Weeks 1–4)</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Legal opinion on all four programs</li>
+<li><input disabled="" type="checkbox"> Smart contract development (MerkleDistributor, vesting, LP gauge)</li>
+<li><input disabled="" type="checkbox"> Smart contract audit (minimum 2 independent auditors)</li>
+<li><input disabled="" type="checkbox"> Testnet deployment and testing</li>
+<li><input disabled="" type="checkbox"> Anti-gaming detection system (off-chain monitoring)</li>
+<li><input disabled="" type="checkbox"> Dashboard development (public transparency)</li>
+<li><input disabled="" type="checkbox"> Terms of Service drafted and published</li>
+<li><input disabled="" type="checkbox"> Community announcement and feedback period (14 days)</li>
+</ul>
+<h3 id="launch-week-5">Launch (Week 5)</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Deploy distribution contracts to mainnet</li>
+<li><input disabled="" type="checkbox"> Seed initial LP positions (protocol-owned liquidity)</li>
+<li><input disabled="" type="checkbox"> Open transaction mining epoch 1</li>
+<li><input disabled="" type="checkbox"> Publish grant application form</li>
+<li><input disabled="" type="checkbox"> Launch referral code generation</li>
+<li><input disabled="" type="checkbox"> Begin weekly monitoring reports</li>
+</ul>
+<h3 id="ongoing-monthly">Ongoing (Monthly)</h3>
+<ul>
+<li><input disabled="" type="checkbox"> Epoch close and Merkle root publication</li>
+<li><input disabled="" type="checkbox"> Gaming review and clawback processing</li>
+<li><input disabled="" type="checkbox"> Grant milestone reviews</li>
+<li><input disabled="" type="checkbox"> KPI tracking and reporting</li>
+<li><input disabled="" type="checkbox"> Community governance calls</li>
+</ul>
+<hr>
+<h2 id="appendix-b-comparative-analysis">Appendix B: Comparative Analysis</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Protocol</th>
+<th>Mechanism</th>
+<th>Daily Emission</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>dYdX</td>
+<td>Trading rewards (volume-based)</td>
+<td>~3.8M DYDX/epoch</td>
+<td>Successfully bootstrapped volume; some wash trading</td>
+</tr>
+<tr>
+<td>Blur</td>
+<td>Listing + bidding rewards</td>
+<td>Points-based</td>
+<td>Dominated NFT market; high mercenary activity</td>
+</tr>
+<tr>
+<td>Optimism</td>
+<td>RetroPGF + ecosystem grants</td>
+<td>Grant-based</td>
+<td>Strong ecosystem growth; slower distribution</td>
+</tr>
+<tr>
+<td><strong>Vektes (proposed)</strong></td>
+<td><strong>Settlement mining + LP + grants</strong></td>
+<td><strong>~683K VEK/day (Y1 avg)</strong></td>
+<td><strong>Target: organic adoption by M12</strong></td>
+</tr>
+</tbody></table></div>
+<p><strong>Key Differentiator:</strong> Vektes rewards <em>settled</em> transactions (irrevocable), not trades. The settlement time requirement (≥24 hours for full rewards) and counterparty diversity requirement make gaming significantly more expensive than on trading platforms.</p>
+<hr>
+<h2 id="appendix-c-risk-matrix">Appendix C: Risk Matrix</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Sybil farming dominates rewards</td>
+<td>Medium</td>
+<td>High</td>
+<td>Counterparty requirements, velocity checks, manual review</td>
+</tr>
+<tr>
+<td>Mercenary LPs dump on vest</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Lock bonuses, gradual vesting, exit penalties</td>
+</tr>
+<tr>
+<td>Low organic adoption despite incentives</td>
+<td>Medium</td>
+<td>High</td>
+<td>Monthly KPI review, program pivots, sunset triggers</td>
+</tr>
+<tr>
+<td>Regulatory action (securities claim)</td>
+<td>Low</td>
+<td>Critical</td>
+<td>Legal opinion pre-launch, usage-only framing, no yield language</td>
+</tr>
+<tr>
+<td>Smart contract exploit</td>
+<td>Low</td>
+<td>Critical</td>
+<td>Multiple audits, bug bounty, timelocked upgrades, insurance</td>
+</tr>
+<tr>
+<td>Token price collapse discourages participation</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>VEK-denominated targets, not USD; adjust grant sizes at TWAP</td>
+</tr>
+<tr>
+<td>Grant recipients fail to deliver</td>
+<td>Medium</td>
+<td>Low</td>
+<td>Milestone-based disbursement, clawback on non-delivery</td>
+</tr>
+</tbody></table></div>
+<hr>
+<p><em>This document is a governance proposal draft. It does not constitute legal advice, financial advice, or a promise of returns. All programs are subject to modification through the governance process described in Section 5.4. Participation in any program requires acceptance of the Vektes Protocol Terms of Service.</em></p>
+<hr>
+<p><strong>Document Hash:</strong> [To be computed on finalization]<br><strong>Governance Forum:</strong> [To be linked]<br><strong>Discussion Period:</strong> 14 days from publication<br><strong>Vote (if applicable):</strong> Snapshot signal vote → on-chain execution</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

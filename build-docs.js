@@ -38,6 +38,7 @@ const PAGES = [
   { file: "contracts.md",          slug: "contracts",          out: "contracts.html",          nav: "Contracts",         desc: "Mainnet contract addresses, configuration, and supported tokens." },
   { file: "security.md",           slug: "security",           out: "security.html",           nav: "Security",          desc: "Audit, access control, reentrancy, pausability, and fund-safety guarantees." },
   { file: "faq.md",                slug: "faq",                out: "faq.html",                nav: "FAQ",               desc: "Common questions about transfers, settlement, fees, claiming, and security." },
+  { file: "incentives.md",         slug: "incentives",         out: "incentives.html",         nav: "Incentive Programs (RFC)", desc: "Draft RFC: transaction-mining, liquidity, developer-grant, and referral incentive programs for $VEK." },
 ];
 
 const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E";
