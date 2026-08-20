@@ -2,7 +2,16 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://vektes.com/</loc></url>
   <url><loc>https://vektes.com/features.html</loc></url>
+  <url><loc>https://vektes.com/vesting</loc></url>
   <url><loc>https://vektes.com/terms</loc></url>
   <url><loc>https://vektes.com/privacy</loc></url>
   <url><loc>https://vektes.com/risks</loc></url>
+  <url><loc>https://vektes.com/docs/</loc></url>
+  <url><loc>https://vektes.com/docs/quick-start</loc></url>
+  <url><loc>https://vektes.com/docs/protocol-reference</loc></url>
+  <url><loc>https://vektes.com/docs/fee-model</loc></url>
+  <url><loc>https://vektes.com/docs/integration-guide</loc></url>
+  <url><loc>https://vektes.com/docs/contracts</loc></url>
+  <url><loc>https://vektes.com/docs/security</loc></url>
+  <url><loc>https://vektes.com/docs/faq</loc></url>
 </urlset>

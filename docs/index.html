@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vektes Protocol — Vektes Docs</title>
+<meta name="description" content="Vektes protocol documentation — irrevocable settlement with dedup codes, scheduling, and recipient controls." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/" aria-current="page">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="vektes-protocol">Vektes Protocol</h1>
+<blockquote>
+<p>Programmable, irrevocable token transfers with built-in deduplication, optional settlement scheduling, and recipient controls.</p>
+</blockquote>
+<h2 id="what-is-vektes">What is Vektes?</h2>
+<p>Vektes is an on-chain settlement protocol that brings payment-grade guarantees to EVM token transfers. It wraps ERC-20 and native ETH movements in a thin coordination layer that prevents duplicate sends, can enforce a settlement window, and lets recipients reject inbound scheduled funds.</p>
+<p>Think of it as <strong>wire-transfer semantics for smart contracts</strong>.</p>
+<hr>
+<h2 id="core-primitives">Core Primitives</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Deduplication</strong></td>
+<td>Every transfer is keyed by <code>(sender, recipient, txCode)</code>. A code can only be used once per <strong>sender→recipient pair</strong> — replay and double-send revert at the protocol level.</td>
+</tr>
+<tr>
+<td><strong>Instant or scheduled</strong></td>
+<td><code>settlementDate = 0</code> (or any past time) delivers immediately. A future <code>settlementDate</code> locks the funds in the contract until then, when the recipient can claim.</td>
+</tr>
+<tr>
+<td><strong>Irrevocability</strong></td>
+<td>Once submitted, the sender cannot cancel, reverse, or redirect a transfer — the same finality as a bank wire.</td>
+</tr>
+<tr>
+<td><strong>Recipient Rejection</strong></td>
+<td>For a scheduled transfer, the recipient may call <code>rejectTransfer()</code> to return the funds to the sender (before claiming). Only the recipient — never the sender.</td>
+</tr>
+<tr>
+<td><strong>Multi-Asset</strong></td>
+<td>Any allowlisted ERC-20 via <code>send()</code>, or native ETH via <code>sendNative()</code>. The recipient always receives the full amount; any fee is charged separately in $VEK.</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="how-it-works">How It Works</h2>
+<p><strong>Instant transfer</strong> (<code>settlementDate = 0</code>):</p>
+<pre><code>Sender ── send(token, to, amount, txCode, 0) ──▶ Vektes ──▶ Recipient (delivered in the same tx)
+</code></pre>
+<p><strong>Scheduled transfer</strong> (future <code>settlementDate</code>):</p>
+<pre><code>Sender ── send(..., settlementDate) ──▶ Vektes  (funds locked)
+                                          │  (settlement date passes)
+Recipient ── claim(sender, txCode) ──────▶│──▶ funds released to recipient
+   or ────── rejectTransfer(...) ─────────▶│──▶ funds refunded to sender
+</code></pre>
+<ol>
+<li><strong>Sender</strong> calls <code>send()</code> / <code>sendNative()</code> with a unique code and a settlement date (<code>0</code> = instant).</li>
+<li>Instant transfers are delivered immediately; scheduled transfers are held and the transfer is now <strong>irrevocable</strong> from the sender&#39;s side.</li>
+<li>For scheduled transfers, after the date the <strong>recipient</strong> calls <code>claim()</code>.</li>
+<li>Alternatively the recipient calls <code>rejectTransfer()</code> to refund the sender.</li>
+</ol>
+<hr>
+<h2 id="quick-links">Quick Links</h2>
+<ul>
+<li><a href="/docs/quick-start">Quick Start →</a></li>
+<li><a href="/docs/protocol-reference">Protocol Reference →</a></li>
+<li><a href="/docs/fee-model">Fee Model →</a></li>
+<li><a href="/docs/integration-guide">Integration Guide →</a></li>
+<li><a href="/docs/contracts">Contract Addresses →</a></li>
+<li><a href="/docs/security">Security →</a></li>
+<li><a href="/docs/faq">FAQ →</a></li>
+</ul>
+<hr>
+<h2 id="who-uses-vektes">Who Uses Vektes?</h2>
+<ul>
+<li><strong>Payment platforms</strong> that need wire-like finality without custodial risk</li>
+<li><strong>Treasury operations</strong> batching disbursements to known settlement dates</li>
+<li><strong>B2B invoicing</strong> where duplicate-payment prevention matters</li>
+<li><strong>Payroll</strong> flows needing scheduled, non-reversible payouts</li>
+</ul>
+<hr>
+<h2 id="status">Status</h2>
+<p>Live on Ethereum mainnet, audited by <strong>CertiK</strong>, and owned by a 2-of-3 Gnosis Safe multisig (<code>Ownable2Step</code>). The contract is immutable (non-upgradeable). The protocol currently runs <strong>fee-free</strong> — all fee tiers are set to <code>0</code> on-chain, with the tier mechanism available for later activation by governance. See <a href="/docs/security">Security</a> and <a href="/docs/fee-model">Fee Model</a>.</p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

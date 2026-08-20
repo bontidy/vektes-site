@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quick Start — Vektes Docs</title>
+<meta name="description" content="Send your first Vektes transfer — approve, send (instant or scheduled), claim." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/quick-start" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start" aria-current="page">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="quick-start">Quick Start</h1>
+<p>Send your first transfer through the Vektes protocol in a few minutes.</p>
+<hr>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul>
+<li>An EVM wallet with ETH for gas plus the token you want to send</li>
+<li>The token must be <strong>on the supported-token allowlist</strong> (currently USDC, USDT; native ETH always works)</li>
+<li>Approve the protocol to spend the token (standard ERC-20 <code>approve</code>)</li>
+<li>A unique transaction code (<code>bytes32</code>) — your dedup key, unique per <strong>sender→recipient</strong> pair</li>
+<li>VEK for fees <strong>only if fees are active</strong> (they are currently <code>0</code> — see <a href="/docs/fee-model">Fee Model</a>)</li>
+</ul>
+<hr>
+<h2 id="1-approve-the-token">1. Approve the Token</h2>
+<pre><code class="language-typescript">// ethers.js v6
+const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
+await token.approve(&quot;0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7&quot;, amount);
+</code></pre>
+<hr>
+<h2 id="2-send-a-transfer">2. Send a Transfer</h2>
+<h3 id="instant-erc-20-transfer-settlementdate-0">Instant ERC-20 transfer (<code>settlementDate = 0</code>)</h3>
+<p>With <code>settlementDate = 0</code>, the recipient receives the funds <strong>immediately, in the same transaction</strong> — there&#39;s nothing to claim.</p>
+<pre><code class="language-typescript">const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, signer);
+
+const txCode = ethers.id(&quot;INV-2026-0042&quot;); // bytes32, unique for this recipient
+
+const tx = await vektes.send(
+  USDC_ADDRESS,      // token (must be supported)
+  recipientAddress,  // to
+  1_000_000n,        // amount (1 USDC, 6 decimals)
+  txCode,            // unique code (per sender→recipient)
+  0                  // settlementDate: 0 = instant delivery
+);
+await tx.wait();
+console.log(&quot;Delivered:&quot;, tx.hash);
+</code></pre>
+<p>To protect against fee slippage once fees are active, use the 6-argument overload with a <code>maxFeeVek</code> cap (quote it via <code>previewFee</code>):</p>
+<pre><code class="language-typescript">const fee = await vektes.previewFee(signer.address, USDC_ADDRESS, 1_000_000n);
+await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, 0, fee);
+</code></pre>
+<h3 id="scheduled-transfer-future-settlement">Scheduled transfer (future settlement)</h3>
+<p>With a future <code>settlementDate</code>, funds are <strong>held in the contract</strong> until that time, then the recipient claims.</p>
+<pre><code class="language-typescript">const settlementDate = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // +7 days
+await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, settlementDate);
+</code></pre>
+<h3 id="native-eth">Native ETH</h3>
+<pre><code class="language-typescript">const tx = await vektes.sendNative(
+  recipientAddress,
+  txCode,
+  0,                                    // 0 = instant
+  { value: ethers.parseEther(&quot;0.5&quot;) }
+);
+</code></pre>
+<hr>
+<h2 id="3-claim-a-scheduled-transfer-recipient">3. Claim a Scheduled Transfer (recipient)</h2>
+<p>Only needed for <strong>scheduled</strong> transfers, once the settlement date has passed. (Instant transfers are already delivered — no claim.)</p>
+<pre><code class="language-typescript">const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, recipientSigner);
+const tx = await vektes.claim(senderAddress, txCode);
+await tx.wait();
+console.log(&quot;Funds claimed!&quot;);
+</code></pre>
+<p>The recipient can instead <code>rejectTransfer(senderAddress, txCode)</code> at any time before claiming, which refunds the sender.</p>
+<hr>
+<h2 id="4-check-transfer-status-optional">4. Check Transfer Status (optional)</h2>
+<p>All lookups take <strong>sender, recipient, and code</strong>:</p>
+<pre><code class="language-typescript">// Scheduled transfers only — instant transfers are not stored (track them via the InstantTransfer event)
+const t = await vektes.getTransfer(senderAddress, recipientAddress, txCode);
+console.log(t);
+// { token, sender, recipient, amount, fee, settlementDate, createdAt, txCode, claimed, cancelled }
+
+const claimable = await vektes.isClaimable(senderAddress, recipientAddress, txCode);
+console.log(&quot;Claimable now:&quot;, claimable);
+</code></pre>
+<hr>
+<h2 id="transaction-code-best-practices">Transaction Code Best Practices</h2>
+<p><code>txCode</code> is a <code>bytes32</code> that uniquely identifies a transfer <strong>for a given sender→recipient pair</strong>. The same code can be reused with a <em>different</em> recipient.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hash an invoice ID</td>
+<td><code>ethers.id(&quot;INV-2026-0042&quot;)</code></td>
+</tr>
+<tr>
+<td>Hash a UUID</td>
+<td><code>ethers.id(&quot;550e8400-e29b-41d4-a716-446655440000&quot;)</code></td>
+</tr>
+<tr>
+<td>Incremental counter</td>
+<td><code>ethers.zeroPadValue(ethers.toBeHex(nonce), 32)</code></td>
+</tr>
+</tbody></table></div>
+<pre><code class="language-typescript">// Check availability before sending (sender, recipient, code)
+const used = await vektes.isCodeUsed(signer.address, recipientAddress, txCode);
+</code></pre>
+<blockquote>
+<p>⚠️ <strong>Important:</strong> reusing a code for the <em>same</em> recipient reverts with <code>DuplicateTransactionCode(txCode, recipient)</code>.</p>
+</blockquote>
+<hr>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="/docs/protocol-reference">Protocol Reference →</a> — full function signatures and parameters</li>
+<li><a href="/docs/fee-model">Fee Model →</a> — how fees work (and why they&#39;re currently free)</li>
+<li><a href="/docs/integration-guide">Integration Guide →</a> — build a full payment flow</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

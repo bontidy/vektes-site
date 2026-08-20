@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FAQ — Vektes Docs</title>
+<meta name="description" content="Common questions about transfers, settlement, fees, claiming, and security." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/faq" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq" aria-current="page">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="faq">FAQ</h1>
+<p>Common questions about the Vektes protocol.</p>
+<hr>
+<h2 id="general">General</h2>
+<h3 id="what-is-vektes">What is Vektes?</h3>
+<p>Vektes is an on-chain settlement protocol that adds wire-transfer-style guarantees to EVM token transfers — deduplication, optional settlement scheduling, sender-irrevocability, and recipient rejection.</p>
+<h3 id="what-problem-does-it-solve">What problem does it solve?</h3>
+<p>Plain ERC-20 <code>transfer()</code> is fire-and-forget. Vektes adds:</p>
+<ul>
+<li><strong>Deduplication</strong> — a code, unique per <strong>sender→recipient</strong> pair, makes double-sends impossible.</li>
+<li><strong>Settlement windows</strong> — optionally hold funds until a chosen date.</li>
+<li><strong>Irrevocability</strong> — senders can&#39;t claw back (same guarantee as a bank wire).</li>
+<li><strong>Recipient controls</strong> — recipients can reject a pending (scheduled) transfer.</li>
+</ul>
+<h3 id="is-vektes-custodial">Is Vektes custodial?</h3>
+<p>No. It&#39;s a non-custodial, immutable smart contract. For instant transfers funds pass straight through to the recipient; for scheduled transfers they&#39;re held by the contract until the recipient claims. No party — including the owner — can redirect or seize funds.</p>
+<hr>
+<h2 id="transfers">Transfers</h2>
+<h3 id="instant-or-scheduled-what-39-s-the-difference">Instant or scheduled — what&#39;s the difference?</h3>
+<p>If <code>settlementDate &lt;= now</code> (e.g. <code>0</code>), the transfer is <strong>instant</strong>: the recipient gets the funds in the same transaction, and nothing is stored to claim. If <code>settlementDate</code> is in the future, it&#39;s <strong>scheduled</strong>: funds are held until then and the recipient calls <code>claim()</code>.</p>
+<h3 id="can-i-cancel-a-transfer-after-sending">Can I cancel a transfer after sending?</h3>
+<p>No. Transfers are <strong>irrevocable by the sender</strong>. The only way funds return is if the recipient rejects a <em>scheduled</em> transfer via <code>rejectTransfer()</code> (which refunds the sender). Instant transfers are final on delivery.</p>
+<h3 id="what-happens-if-the-recipient-never-claims-a-scheduled-transfer">What happens if the recipient never claims a scheduled transfer?</h3>
+<p>Funds stay locked in the contract indefinitely; the sender cannot reclaim them. (The recipient can still <code>rejectTransfer</code> to refund the sender.)</p>
+<h3 id="what-tokens-are-supported">What tokens are supported?</h3>
+<p>A <strong>curated allowlist</strong> of standard ERC-20s (currently USDC and USDT), plus native ETH via <code>sendNative()</code>. Sending a non-allowlisted token reverts with <code>TokenNotSupported</code>. Fee-on-transfer and rebasing tokens are intentionally excluded. Check <code>supportedTokens(token)</code> first.</p>
+<h3 id="what-happens-if-i-reuse-a-transaction-code">What happens if I reuse a transaction code?</h3>
+<p>It reverts with <code>DuplicateTransactionCode(txCode, recipient)</code>. A code is unique per <strong><code>(sender, recipient)</code></strong> pair — the same code <em>can</em> be reused with a different recipient. Check with <code>isCodeUsed(sender, recipient, txCode)</code>.</p>
+<hr>
+<h2 id="settlement">Settlement</h2>
+<h3 id="what-does-settlementdate-0-mean">What does <code>settlementDate = 0</code> mean?</h3>
+<p>Instant delivery — the recipient receives funds immediately in the send transaction. (Any past/current timestamp is treated the same way.)</p>
+<h3 id="can-the-settlement-date-be-changed-after-sending">Can the settlement date be changed after sending?</h3>
+<p>No. It&#39;s fixed when the transfer is created.</p>
+<h3 id="can-the-recipient-reject-before-the-settlement-date">Can the recipient reject before the settlement date?</h3>
+<p>Yes. <code>rejectTransfer()</code> works any time before the transfer is claimed — before or after the settlement date.</p>
+<hr>
+<h2 id="fees">Fees</h2>
+<h3 id="how-much-does-it-cost">How much does it cost?</h3>
+<p><strong>Currently nothing</strong> — the protocol launched with all fee tiers set to <code>0</code>. When fees are activated, they&#39;re tiered by the <strong>sender&#39;s monthly volume</strong> (0.005% / 0.01% / 0.02% above a free tier), paid in $VEK, and the recipient always receives the full transfer amount. See the <a href="/docs/fee-model">Fee Model</a>.</p>
+<h3 id="what-token-are-fees-paid-in">What token are fees paid in?</h3>
+<p><strong>$VEK</strong>. When fees are active you must hold VEK and approve the protocol to spend it. While fees are <code>0</code>, no VEK is needed.</p>
+<h3 id="is-there-a-maximum-fee">Is there a maximum fee?</h3>
+<p>There&#39;s no fixed cap. Instead you set a <strong>per-transaction cap</strong> (<code>maxFeeVek</code>) via the 6-argument <code>send</code>/<code>sendNative</code> overloads; the send reverts with <code>FeeExceedsMax</code> if the fee would exceed it. Quote the fee with <code>previewFee(sender, token, amount)</code>.</p>
+<h3 id="are-fee-tiers-based-on-the-transfer-size">Are fee tiers based on the transfer size?</h3>
+<p>No — on the <strong>sender&#39;s cumulative volume over a rolling ~30-day window</strong>. Two transfers of the same size can land in different tiers depending on the sender&#39;s monthly total.</p>
+<h3 id="where-do-fees-go">Where do fees go?</h3>
+<p>Split by <code>burnPercentage</code> (currently 50): half burned to <code>0x…dEaD</code>, half to the treasury (the Gnosis Safe). The split is owner-adjustable.</p>
+<hr>
+<h2 id="claiming">Claiming</h2>
+<h3 id="who-can-claim">Who can claim?</h3>
+<p>Only the designated recipient of a scheduled transfer. No one else — not even the owner. (Instant transfers need no claim.)</p>
+<h3 id="can-i-claim-multiple-transfers-at-once">Can I claim multiple transfers at once?</h3>
+<p>Yes — <code>batchClaim(senders[], txCodes[])</code>. Non-claimable entries in the batch are <strong>skipped</strong>, not reverted, so one bad entry doesn&#39;t fail the whole call.</p>
+<h3 id="how-do-i-reject-a-transfer">How do I reject a transfer?</h3>
+<p><code>rejectTransfer(sender, txCode)</code> — funds return to the original sender. Any time before claiming.</p>
+<h3 id="can-i-partially-claim">Can I partially claim?</h3>
+<p>No. Claims are all-or-nothing; the full amount goes to the recipient.</p>
+<hr>
+<h2 id="security">Security</h2>
+<h3 id="has-it-been-audited">Has it been audited?</h3>
+<p>Yes — by <strong>CertiK</strong>, no critical/high findings. See <a href="/docs/security">Security</a>.</p>
+<h3 id="is-the-contract-upgradeable">Is the contract upgradeable?</h3>
+<p>No. Immutable — no proxy, no <code>delegatecall</code>.</p>
+<h3 id="what-can-the-owner-do">What can the owner do?</h3>
+<p>The owner (a 2-of-3 Gnosis Safe, <code>Ownable2Step</code>) can only <strong>configure</strong>: pause/unpause new sends, update fee tiers, oracle feeds, treasury, burn split, the fee token, and the supported-token allowlist. It <strong>cannot</strong> access funds, change recipients, block settled claims, or mint VEK.</p>
+<h3 id="what-happens-if-the-protocol-is-paused">What happens if the protocol is paused?</h3>
+<p>New sends stop; existing transfers can still be claimed or rejected. Funds are never trapped.</p>
+<hr>
+<h2 id="integration">Integration</h2>
+<h3 id="do-i-need-a-special-sdk">Do I need a special SDK?</h3>
+<p>No — it&#39;s a standard contract. Use ethers.js, viem, web3.js, etc. See the <a href="/docs/integration-guide">Integration Guide</a>.</p>
+<h3 id="how-do-i-monitor-for-incoming-transfers">How do I monitor for incoming transfers?</h3>
+<p>Watch <strong>both</strong> <code>InstantTransfer</code> (immediate) and <code>TransferCreated</code> (scheduled), filtered by your address as recipient. There is no single <code>TransferSent</code> event.</p>
+<h3 id="is-there-a-testnet-deployment">Is there a testnet deployment?</h3>
+<p>Contact the team for testnet addresses.</p>
+<h3 id="can-i-integrate-from-a-smart-contract">Can I integrate from a smart contract?</h3>
+<p>Yes. Import an <code>IVektes</code> interface and call directly (ensure your contract holds approvals):</p>
+<pre><code class="language-solidity">interface IVektes {
+    function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate) external;
+    function claim(address sender, bytes32 txCode) external;
+    function rejectTransfer(address sender, bytes32 txCode) external;
+}
+</code></pre>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Integration Guide — Vektes Docs</title>
+<meta name="description" content="Build a payment flow on Vektes — ABI, events, error handling, and webhooks." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/integration-guide" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide" aria-current="page">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="integration-guide">Integration Guide</h1>
+<p>Build a payment application on the Vektes protocol. Covers sending (instant and scheduled), monitoring, claiming, and rejecting.</p>
+<hr>
+<h2 id="setup">Setup</h2>
+<pre><code class="language-bash">npm install ethers@6
+</code></pre>
+<pre><code class="language-typescript">import { ethers } from &quot;ethers&quot;;
+
+// Minimal interface — use the full verified ABI from Etherscan in production.
+const VEKTES_ABI = [
+  // sends (both overloads)
+  &quot;function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate) external&quot;,
+  &quot;function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external&quot;,
+  &quot;function sendNative(address to, bytes32 txCode, uint256 settlementDate) external payable&quot;,
+  &quot;function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external payable&quot;,
+  // exits
+  &quot;function claim(address sender, bytes32 txCode) external&quot;,
+  &quot;function rejectTransfer(address sender, bytes32 txCode) external&quot;,
+  &quot;function batchClaim(address[] senders, bytes32[] txCodes) external&quot;,
+  // views (note: sender + recipient + code)
+  &quot;function getTransfer(address sender, address recipient, bytes32 txCode) external view returns (tuple(address token, address sender, address recipient, uint256 amount, uint256 fee, uint256 settlementDate, uint256 createdAt, bytes32 txCode, bool claimed, bool cancelled))&quot;,
+  &quot;function isClaimable(address sender, address recipient, bytes32 txCode) external view returns (bool)&quot;,
+  &quot;function isCodeUsed(address sender, address recipient, bytes32 txCode) external view returns (bool)&quot;,
+  &quot;function previewFee(address sender, address token, uint256 amount) external view returns (uint256)&quot;,
+  &quot;function getCurrentTier(address sender) external view returns (uint256 tierIndex, uint256 feeBps)&quot;,
+  &quot;function supportedTokens(address token) external view returns (bool)&quot;,
+  // events
+  &quot;event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt)&quot;,
+  &quot;event InstantTransfer(address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 timestamp)&quot;,
+  &quot;event TransferClaimed(bytes32 indexed transferKey, address indexed recipient, address token, uint256 amount, uint256 claimedAt)&quot;,
+  &quot;event TransferRejected(bytes32 indexed transferKey, address indexed recipient, address indexed sender, address token, uint256 amount, uint256 rejectedAt)&quot;,
+];
+
+const VEKTES_ADDRESS = &quot;0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7&quot;;
+
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
+const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, signer);
+</code></pre>
+<hr>
+<h2 id="sending-transfers">Sending Transfers</h2>
+<p>Codes are unique per <strong>sender→recipient</strong> pair — always pass the recipient when checking availability.</p>
+<pre><code class="language-typescript">function generateTxCode(paymentId: string): string {
+  return ethers.id(paymentId); // keccak256 → bytes32
+}
+
+async function ensureCodeAvailable(recipient: string, code: string): Promise&lt;void&gt; {
+  if (await vektes.isCodeUsed(signer.address, recipient, code)) {
+    throw new Error(&quot;Transaction code already used for this recipient&quot;);
+  }
+}
+</code></pre>
+<h3 id="send-erc-20">Send ERC-20</h3>
+<pre><code class="language-typescript">async function sendPayment(params: {
+  token: string;
+  recipient: string;
+  amount: bigint;
+  paymentId: string;
+  settlementDate?: number; // 0/undefined = instant
+}) {
+  const txCode = generateTxCode(params.paymentId);
+
+  // 1. Token must be supported
+  if (!(await vektes.supportedTokens(params.token))) {
+    throw new Error(&quot;Token not supported by the protocol&quot;);
+  }
+
+  // 2. Code must be free for this recipient
+  await ensureCodeAvailable(params.recipient, txCode);
+
+  // 3. Preview + cap the fee (0 while the protocol is free)
+  const fee = await vektes.previewFee(signer.address, params.token, params.amount);
+
+  // 4. Approve the transfer token (and VEK if a fee applies)
+  const token = new ethers.Contract(params.token, ERC20_ABI, signer);
+  if ((await token.allowance(signer.address, VEKTES_ADDRESS)) &lt; params.amount) {
+    await (await token.approve(VEKTES_ADDRESS, params.amount)).wait();
+  }
+  if (fee &gt; 0n) {
+    const vek = new ethers.Contract(VEK_ADDRESS, ERC20_ABI, signer);
+    if ((await vek.allowance(signer.address, VEKTES_ADDRESS)) &lt; fee) {
+      await (await vek.approve(VEKTES_ADDRESS, fee)).wait();
+    }
+  }
+
+  // 5. Send (6-arg overload with the fee cap for slippage safety)
+  const tx = await vektes.send(
+    params.token, params.recipient, params.amount, txCode,
+    params.settlementDate ?? 0, fee
+  );
+  const receipt = await tx.wait();
+  return { txHash: receipt.hash, txCode, blockNumber: receipt.blockNumber };
+}
+</code></pre>
+<blockquote>
+<p><strong>Instant vs scheduled:</strong> <code>settlementDate ?? 0</code> delivers immediately (<code>InstantTransfer</code>). A future timestamp locks the funds until then (<code>TransferCreated</code>), and the recipient claims later.</p>
+</blockquote>
+<hr>
+<h2 id="listening-to-events">Listening to Events</h2>
+<p>Both a send path (<code>InstantTransfer</code> for immediate, <code>TransferCreated</code> for scheduled) must be watched — there is no single <code>TransferSent</code> event.</p>
+<pre><code class="language-typescript">// Incoming to a given recipient — instant deliveries
+vektes.on(vektes.filters.InstantTransfer(null, recipient),
+  (sender, rcpt, token, amount, fee, txCode, timestamp) =&gt; {
+    // funds already delivered on-chain
+  });
+
+// Incoming to a given recipient — scheduled (claimable later)
+vektes.on(vektes.filters.TransferCreated(null, null, recipient),
+  (transferKey, sender, rcpt, token, amount, fee, txCode, settlementDate, createdAt) =&gt; {
+    // notify recipient; claimable at settlementDate
+  });
+
+// Claims / rejections on transfers you sent (filter by transferKey if you track it)
+vektes.on(&quot;TransferClaimed&quot;, (transferKey, recipient, token, amount) =&gt; { /* ... */ });
+vektes.on(&quot;TransferRejected&quot;, (transferKey, recipient, sender, token, amount) =&gt; { /* refund path */ });
+</code></pre>
+<h3 id="historical-query">Historical query</h3>
+<pre><code class="language-typescript">async function getScheduledSent(sender: string, fromBlock: number) {
+  const events = await vektes.queryFilter(vektes.filters.TransferCreated(null, sender), fromBlock, &quot;latest&quot;);
+  return events.map((e) =&gt; ({
+    recipient: e.args.recipient, token: e.args.token, amount: e.args.amount,
+    txCode: e.args.txCode, settlementDate: e.args.settlementDate, blockNumber: e.blockNumber,
+  }));
+}
+</code></pre>
+<hr>
+<h2 id="claiming-rejecting-recipient">Claiming &amp; Rejecting (recipient)</h2>
+<pre><code class="language-typescript">async function claimTransfer(sender: string, recipient: string, txCode: string) {
+  if (!(await vektes.isClaimable(sender, recipient, txCode))) {
+    const t = await vektes.getTransfer(sender, recipient, txCode);
+    if (t.amount === 0n) throw new Error(&quot;No such scheduled transfer&quot;);
+    if (t.claimed) throw new Error(&quot;Already claimed&quot;);
+    if (t.cancelled) throw new Error(&quot;Rejected&quot;);
+    throw new Error(`Not settled until ${t.settlementDate}`);
+  }
+  return (await vektes.claim(sender, txCode)).wait(); // caller must be the recipient
+}
+
+// batchClaim SKIPS non-claimable entries (does not revert the whole batch)
+async function claimAll(items: Array&lt;{ sender: string; recipient: string; txCode: string }&gt;) {
+  const ready = [];
+  for (const t of items) if (await vektes.isClaimable(t.sender, t.recipient, t.txCode)) ready.push(t);
+  if (!ready.length) return null;
+  return (await vektes.batchClaim(ready.map((t) =&gt; t.sender), ready.map((t) =&gt; t.txCode))).wait();
+}
+
+async function rejectIncoming(sender: string, txCode: string) {
+  return (await vektes.rejectTransfer(sender, txCode)).wait(); // refunds the sender
+}
+</code></pre>
+<hr>
+<h2 id="transfer-status-state-machine">Transfer Status State Machine</h2>
+<pre><code class="language-typescript">type TransferStatus = &quot;delivered&quot; | &quot;pending&quot; | &quot;claimable&quot; | &quot;claimed&quot; | &quot;rejected&quot;;
+
+async function getStatus(sender: string, recipient: string, txCode: string): Promise&lt;TransferStatus&gt; {
+  const t = await vektes.getTransfer(sender, recipient, txCode);
+  if (t.amount === 0n) return &quot;delivered&quot;; // no record ⇒ it was an instant transfer (already delivered)
+  if (t.claimed) return &quot;claimed&quot;;
+  if (t.cancelled) return &quot;rejected&quot;;
+  const now = Math.floor(Date.now() / 1000);
+  return now &lt; Number(t.settlementDate) ? &quot;pending&quot; : &quot;claimable&quot;;
+}
+</code></pre>
+<blockquote>
+<p>A zero record means either the transfer never existed <strong>or</strong> it was instant (instant transfers aren&#39;t stored). Disambiguate with the <code>InstantTransfer</code> event / your own send log if you need certainty.</p>
+</blockquote>
+<hr>
+<h2 id="error-handling">Error Handling</h2>
+<p>Use the <strong>real</strong> custom-error names:</p>
+<pre><code class="language-typescript">const iface = new ethers.Interface(VEKTES_ERROR_ABI); // include the error fragments
+try {
+  await sendPayment(params);
+} catch (error: any) {
+  const decoded = error.data ? iface.parseError(error.data) : null;
+  switch (decoded?.name) {
+    case &quot;DuplicateTransactionCode&quot;: throw new Error(&quot;Code already used for this recipient.&quot;);
+    case &quot;TokenNotSupported&quot;:        throw new Error(&quot;This token isn&#39;t enabled on the protocol.&quot;);
+    case &quot;ZeroAddress&quot;:              throw new Error(&quot;Invalid recipient address.&quot;);
+    case &quot;ZeroAmount&quot;:               throw new Error(&quot;Amount must be greater than zero.&quot;);
+    case &quot;FeeExceedsMax&quot;:            throw new Error(&quot;Fee moved above your cap — re-quote and retry.&quot;);
+    case &quot;StalePrice&quot;:
+    case &quot;PriceFeedNotSet&quot;:          throw new Error(&quot;Price feed unavailable for this token right now.&quot;);
+    case &quot;EnforcedPause&quot;:            throw new Error(&quot;New transfers are paused.&quot;);
+    default: if (error.code === &quot;INSUFFICIENT_FUNDS&quot;) throw new Error(&quot;Insufficient gas balance.&quot;); throw error;
+  }
+}
+</code></pre>
+<hr>
+<h2 id="webhook-indexer-pattern-server-side">Webhook / Indexer Pattern (server-side)</h2>
+<pre><code class="language-typescript">const provider = new ethers.WebSocketProvider(process.env.WS_RPC_URL!);
+const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, provider);
+
+vektes.on(&quot;InstantTransfer&quot;, async (sender, recipient, token, amount, fee, txCode) =&gt; {
+  await db.transfers.upsert({ sender, recipient, token, amount: amount.toString(), txCode, status: &quot;delivered&quot; });
+  await notifications.send(recipient, { type: &quot;payment_received&quot;, sender, amount: amount.toString(), token });
+});
+
+vektes.on(&quot;TransferCreated&quot;, async (key, sender, recipient, token, amount, fee, txCode, settlementDate) =&gt; {
+  await db.transfers.upsert({ key, sender, recipient, token, amount: amount.toString(), txCode,
+    settlementDate: Number(settlementDate), status: &quot;pending&quot; });
+});
+
+vektes.on(&quot;TransferClaimed&quot;,  async (key) =&gt; { await db.transfers.update({ key }, { status: &quot;claimed&quot; }); });
+vektes.on(&quot;TransferRejected&quot;, async (key) =&gt; { await db.transfers.update({ key }, { status: &quot;rejected&quot; }); });
+</code></pre>
+<hr>
+<h2 id="next-steps">Next Steps</h2>
+<ul>
+<li><a href="/docs/protocol-reference">Protocol Reference →</a> — full function signatures</li>
+<li><a href="/docs/fee-model">Fee Model →</a> — fees, <code>previewFee</code>, and <code>maxFeeVek</code></li>
+<li><a href="/docs/contracts">Contract Addresses →</a> — mainnet addresses and supported tokens</li>
+</ul>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

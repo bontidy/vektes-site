@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contract Addresses — Vektes Docs</title>
+<meta name="description" content="Mainnet contract addresses, configuration, and supported tokens." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/contracts" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts" aria-current="page">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="contract-addresses">Contract Addresses</h1>
+<p>All Vektes protocol contracts deployed on Ethereum mainnet.</p>
+<hr>
+<h2 id="mainnet-deployments">Mainnet Deployments</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Contract</th>
+<th>Address</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Vektes Protocol</strong></td>
+<td><code>0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</code></td>
+<td>Core protocol contract — handles sends, claims, and rejections</td>
+</tr>
+<tr>
+<td><strong>VEK Token</strong></td>
+<td><code>0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215</code></td>
+<td>ERC-20 fee token (and future governance)</td>
+</tr>
+<tr>
+<td><strong>Gnosis Safe (Owner + Treasury)</strong></td>
+<td><code>0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207</code></td>
+<td>2-of-3 multisig that owns the protocol contract and receives the treasury share of fees</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="etherscan-links">Etherscan Links</h2>
+<ul>
+<li><strong>Protocol:</strong> <a href="https://etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7#code">etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</a></li>
+<li><strong>VEK Token:</strong> <a href="https://etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215">etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215</a></li>
+<li><strong>Gnosis Safe:</strong> <a href="https://app.safe.global/home?safe=eth:0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207">app.safe.global/eth:0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207</a></li>
+</ul>
+<hr>
+<h2 id="contract-configuration">Contract Configuration</h2>
+<h3 id="protocol-contract-vektesprotocol">Protocol Contract (<code>VektesProtocol</code>)</h3>
+<pre><code>Owner:            0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe, Ownable2Step)
+Treasury:         0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe)
+Fee token:        0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215 (VEK)
+Burn percentage:  50  (share of each fee burned; remainder to treasury; owner-adjustable 0–100)
+Pausable:         Yes (owner-only; only send/sendNative pause — claims/rejections never pause)
+Upgradeable:      No (immutable deployment — no proxy, no delegatecall)
+</code></pre>
+<blockquote>
+<p><strong>Fee status:</strong> the protocol launched <strong>fee-free</strong> — every fee tier is currently set to <code>0</code> on-chain, so no protocol fee is charged today. The tier <em>mechanism</em> exists and can be activated later by the owner via <code>updateFeeTier</code>. See <a href="/docs/fee-model">Fee Model</a>.</p>
+</blockquote>
+<h3 id="vek-token-vektestoken">VEK Token (<code>VektesToken</code>)</h3>
+<pre><code>Name / Symbol:   Vektes / VEK
+Standard:        ERC-20 + ERC20Burnable + ERC20Permit (EIP-2612)
+Decimals:        18
+Total Supply:    1,000,000,000 VEK (fixed)
+Mintable:        No — the entire supply was minted at deployment; there is no mint function
+Burnable:        Yes (ERC20Burnable; protocol fees are also burned to 0x…dEaD)
+</code></pre>
+<hr>
+<h2 id="supported-tokens">Supported Tokens</h2>
+<p>Transfers use a <strong>curated allowlist</strong> — only tokens the owner has enabled via <code>setTokenSupport</code> can be sent with <code>send()</code>. Sending an unsupported token reverts with <code>TokenNotSupported(token)</code>.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Token</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>USDC (<code>0xA0b8…eB48</code>)</td>
+<td>✅ Supported</td>
+<td>Chainlink USDC/USD feed registered</td>
+</tr>
+<tr>
+<td>USDT (<code>0xdAC1…1ec7</code>)</td>
+<td>✅ Supported</td>
+<td>Chainlink USDT/USD feed registered</td>
+</tr>
+<tr>
+<td>Native ETH</td>
+<td>✅ Always available via <code>sendNative()</code></td>
+<td>Not in the allowlist (native is exempt), but priced by the ETH/USD feed</td>
+</tr>
+<tr>
+<td>Other ERC-20s</td>
+<td>❌ Not enabled</td>
+<td>Owner may add standard ERC-20s over time</td>
+</tr>
+</tbody></table></div>
+<blockquote>
+<p>Only standard ERC-20s are eligible — <strong>fee-on-transfer and rebasing tokens are intentionally not supported.</strong> Check <code>supportedTokens(token)</code> before sending, or handle the <code>TokenNotSupported</code> revert.</p>
+</blockquote>
+<hr>
+<h2 id="integration-checklist">Integration Checklist</h2>
+<p>When integrating with Vektes, your application interacts with:</p>
+<ol>
+<li><strong>Vektes Protocol</strong> (<code>0xd055…8B7</code>) — for <code>send()</code>, <code>claim()</code>, <code>getTransfer()</code>, etc.</li>
+<li><strong>The ERC-20 token being transferred</strong> — <code>approve()</code> the protocol before sending.</li>
+<li><strong>VEK Token</strong> (<code>0xb4fa…d215</code>) — <code>approve()</code> the protocol to cover fees <strong>only when fees are active</strong> (they are currently 0). <code>previewFee()</code> returns the amount to budget.</li>
+</ol>
+<pre><code class="language-typescript">// Minimal setup
+const VEKTES = &quot;0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7&quot;;
+const VEK    = &quot;0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215&quot;;
+const USDC   = &quot;0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&quot;;
+
+// Approve the transfer token
+const usdc = new ethers.Contract(USDC, ERC20_ABI, signer);
+await usdc.approve(VEKTES, ethers.MaxUint256);
+
+// Approve VEK for fees (only needed once fees are activated; a no-op while free)
+const vek = new ethers.Contract(VEK, ERC20_ABI, signer);
+await vek.approve(VEKTES, ethers.MaxUint256);
+</code></pre>
+<hr>
+<h2 id="network-details">Network Details</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Chain</td>
+<td>Ethereum Mainnet</td>
+</tr>
+<tr>
+<td>Chain ID</td>
+<td>1</td>
+</tr>
+<tr>
+<td>Block Explorer</td>
+<td>etherscan.io</td>
+</tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>Note:</strong> Vektes is currently deployed on Ethereum mainnet only. Multi-chain deployments are planned for future releases.</p>
+</blockquote>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

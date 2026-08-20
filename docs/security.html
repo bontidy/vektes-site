@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Security — Vektes Docs</title>
+<meta name="description" content="Audit, access control, reentrancy, pausability, and fund-safety guarantees." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/security" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security" aria-current="page">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="security">Security</h1>
+<p>Vektes is designed with defense-in-depth. The protocol is independently audited, uses OpenZeppelin access-control and safety primitives, is non-upgradeable, and minimizes owner power to configuration only.</p>
+<hr>
+<h2 id="audit">Audit</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Auditor</th>
+<th>Scope</th>
+<th>Findings</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>CertiK</strong></td>
+<td>Full protocol contract + VEK token</td>
+<td>No critical or high-severity issues (remediations applied; e.g. per-recipient dedup, per-feed staleness, actual-balance accounting)</td>
+</tr>
+</tbody></table></div>
+<p>Public report: <a href="https://skynet.certik.com/projects/vektes">skynet.certik.com/projects/vektes</a>.</p>
+<p>The audit covered state-changing functions (<code>send</code>, <code>sendNative</code>, <code>claim</code>, <code>rejectTransfer</code>, <code>batchClaim</code>), fee calculation and oracle integration, access control and ownership, reentrancy, and settlement-date edge cases.</p>
+<hr>
+<h2 id="access-control">Access Control</h2>
+<p>Ownership uses <strong>OpenZeppelin <code>Ownable2Step</code></strong> (two-step transfer: <code>transferOwnership</code> then <code>acceptOwnership</code>), held by the Gnosis Safe:</p>
+<pre><code>Owner: 0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (2-of-3 multisig)
+</code></pre>
+<h3 id="owner-only-functions-configuration-only">Owner-only functions (configuration only)</h3>
+<ul>
+<li><code>pause()</code> / <code>unpause()</code> — emergency circuit breaker for new sends</li>
+<li><code>setPriceFeed(token, feed, threshold)</code> / <code>setStalePriceThreshold(token, threshold)</code> — oracle config</li>
+<li><code>setTreasury(address)</code> — treasury fee recipient</li>
+<li><code>setBurnPercentage(uint256)</code> — burn/treasury split (0–100)</li>
+<li><code>setTokenSupport(token, bool)</code> — supported-token allowlist</li>
+<li><code>setFeeToken(address)</code> — the fee token ($VEK)</li>
+<li><code>updateFeeTier(index, threshold, feeBps)</code> — fee-tier schedule</li>
+<li><code>transferOwnership</code> / <code>acceptOwnership</code></li>
+</ul>
+<blockquote>
+<p>No owner function can access, redirect, or freeze user funds, change a transfer&#39;s recipient, or block a claim on a settled transfer.</p>
+</blockquote>
+<h3 id="what-the-owner-can-cannot-do">What the Owner Can / Cannot Do</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Possible?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Steal or move locked user funds</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td>Change a transfer&#39;s recipient/amount</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td>Prevent claims/rejections after settlement</td>
+<td>❌ No (those paths are not pausable)</td>
+</tr>
+<tr>
+<td>Mint VEK / inflate supply</td>
+<td>❌ No (token has no mint function)</td>
+</tr>
+<tr>
+<td>Upgrade or swap contract logic</td>
+<td>❌ No (immutable, no proxy)</td>
+</tr>
+<tr>
+<td>Pause <strong>new</strong> sends</td>
+<td>✅ Yes (emergency)</td>
+</tr>
+<tr>
+<td>Update fee tiers / burn split / treasury</td>
+<td>✅ Yes (configuration)</td>
+</tr>
+<tr>
+<td>Add/remove supported tokens &amp; price feeds</td>
+<td>✅ Yes (configuration)</td>
+</tr>
+</tbody></table></div>
+<blockquote>
+<p><strong>Note on fee tiers:</strong> these are <strong>configurable</strong>, not immutable — the owner can change rates and thresholds via <code>updateFeeTier</code>. The protocol launched with all tiers at <code>0</code> (free). What is <em>immutable</em> is the contract logic itself.</p>
+</blockquote>
+<hr>
+<h2 id="reentrancy-protection">Reentrancy Protection</h2>
+<p>All fund-moving functions carry OpenZeppelin&#39;s <code>nonReentrant</code> guard and follow checks-effects-interactions:</p>
+<pre><code>send() / sendNative()  → nonReentrant ✓
+claim() / batchClaim() → nonReentrant ✓
+rejectTransfer()       → nonReentrant ✓
+</code></pre>
+<p>State (dedup flags, <code>claimed</code>/<code>cancelled</code>, counters) is updated <strong>before</strong> any external token/native transfer. For inbound ERC-20s the contract credits the <strong>actual balance received</strong> (balance delta), so accounting stays correct and solvent; fee-on-transfer/rebasing tokens are additionally kept off the allowlist by policy.</p>
+<hr>
+<h2 id="pausable">Pausable</h2>
+<p>Implements OpenZeppelin <code>Pausable</code>:</p>
+<ul>
+<li><strong>When paused:</strong> <code>send()</code> / <code>sendNative()</code> are disabled — no new transfers.</li>
+<li><strong>When paused:</strong> <code>claim()</code>, <code>batchClaim()</code>, and <code>rejectTransfer()</code> <strong>remain active</strong> — funds already in the contract can always be withdrawn or refunded.</li>
+</ul>
+<p>A pause can never trap locked funds.</p>
+<hr>
+<h2 id="immutable-deployment">Immutable Deployment</h2>
+<p>The protocol contract is <strong>not upgradeable</strong> — no proxy, no <code>delegatecall</code>, no implementation swap. The address and logic are permanent, so users can verify exactly the code that governs their funds.</p>
+<hr>
+<h2 id="oracle-safety">Oracle Safety</h2>
+<p>Fees are priced through Chainlink <code>AggregatorV3Interface</code> feeds registered per token. Each feed has its <strong>own staleness threshold</strong>; an answer older than the threshold, non-positive, or from an unset feed reverts the transfer (<code>StalePrice</code> / <code>InvalidPrice</code> / <code>PriceFeedNotSet</code>). Oracle issues can only block or misprice a <em>fee</em> — they never affect the transfer amount, which is delivered in full.</p>
+<hr>
+<h2 id="fund-safety">Fund Safety</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Outcome</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Protocol paused</td>
+<td>Claims/rejections still work; only new sends are blocked.</td>
+</tr>
+<tr>
+<td>Owner key compromised</td>
+<td>Attacker can only reconfigure/pause. Cannot access user funds, change recipients, or mint VEK.</td>
+</tr>
+<tr>
+<td>Oracle stale/manipulated</td>
+<td>Fee calc reverts or is bounded; transfer amounts unaffected; sender&#39;s <code>maxFeeVek</code> caps exposure.</td>
+</tr>
+<tr>
+<td>Malicious/odd ERC-20</td>
+<td>Reentrancy guard + actual-balance accounting; non-standard tokens kept off the allowlist.</td>
+</tr>
+<tr>
+<td>Recipient loses keys (scheduled)</td>
+<td>Funds stay locked; the sender cannot reclaim (irrevocability) — but the recipient could still <code>rejectTransfer</code> to refund the sender if they retain access.</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="best-practices-for-integrators">Best Practices for Integrators</h2>
+<ol>
+<li><strong>Verify addresses</strong> against <a href="/docs/contracts">Contract Addresses</a>.</li>
+<li><strong>Check <code>supportedTokens(token)</code></strong> before sending (or handle <code>TokenNotSupported</code>).</li>
+<li><strong>Quote with <code>previewFee(sender, token, amount)</code></strong> and pass it as <code>maxFeeVek</code> for slippage safety.</li>
+<li><strong>Use <code>isClaimable(sender, recipient, code)</code></strong> before claiming to avoid reverts.</li>
+<li><strong>Watch <code>Paused</code>/<code>Unpaused</code></strong> and halt new sends in your UI when paused.</li>
+<li>Prefer <code>permit</code> (VEK is ERC-2612) over unlimited approvals where possible.</li>
+</ol>
+<hr>
+<h2 id="responsible-disclosure">Responsible Disclosure</h2>
+<p>Found a vulnerability? Please disclose responsibly:</p>
+<ul>
+<li><strong>Do not</strong> disclose publicly before a fix is deployed.</li>
+<li>Contact the team via the official channels on vektes.com.</li>
+<li>Bug-bounty rewards are available for valid findings.</li>
+</ul>
+<hr>
+<h2 id="dependencies">Dependencies</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Version</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>OpenZeppelin Contracts</td>
+<td>5.x</td>
+<td><code>Ownable2Step</code>, <code>ReentrancyGuard</code>, <code>Pausable</code>, <code>SafeERC20</code>, <code>Math</code></td>
+</tr>
+<tr>
+<td>Chainlink <code>AggregatorV3Interface</code></td>
+<td>—</td>
+<td>USD price oracles</td>
+</tr>
+<tr>
+<td>Gnosis Safe</td>
+<td>—</td>
+<td>2-of-3 multisig ownership</td>
+</tr>
+</tbody></table></div>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

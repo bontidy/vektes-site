@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fee Model — Vektes Docs</title>
+<meta name="description" content="Monthly-volume fee tiers, the maxFeeVek cap, and the current fee-free launch state." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/fee-model" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/fee-model" aria-current="page">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="fee-model">Fee Model</h1>
+<p>Vektes can charge a small protocol fee on each transfer, paid in <strong>$VEK</strong> and split between burn and treasury. Fees are tiered by the <strong>sender&#39;s monthly transfer volume</strong> — not by the size of any individual transfer.</p>
+<blockquote>
+<p><strong>Current status: transfers are free.</strong> Every fee tier is set to <code>0</code> on-chain today (the protocol launched fee-free). The tier <em>mechanism</em> documented here exists and can be activated later by the owner via <code>updateFeeTier</code>. Until then, <code>previewFee()</code> returns <code>0</code> and no $VEK is required to transfer.</p>
+</blockquote>
+<hr>
+<h2 id="fee-tiers">Fee Tiers</h2>
+<p>Tiers are keyed to a sender&#39;s <strong>cumulative volume over a rolling ~30-day window</strong> (<code>monthlyVolume</code>, reset every 30 days). The rate is stored as <code>feeBps</code> in <strong>units of 0.001%</strong> (so <code>5</code> = 0.005%).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Sender&#39;s monthly volume (USD)</th>
+<th>Intended rate</th>
+<th>Fee on a $50K transfer</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>≤ $10,000</td>
+<td>Free (0)</td>
+<td>$0</td>
+</tr>
+<tr>
+<td>1</td>
+<td>≤ $100,000</td>
+<td>0.005% (5)</td>
+<td>$2.50</td>
+</tr>
+<tr>
+<td>2</td>
+<td>≤ $1,000,000</td>
+<td>0.01% (10)</td>
+<td>$5.00</td>
+</tr>
+<tr>
+<td>3</td>
+<td>&gt; $1,000,000</td>
+<td>0.02% (20)</td>
+<td>$10.00</td>
+</tr>
+</tbody></table></div>
+<p>The &quot;intended rate&quot; column is the standard schedule (also shown on vektes.com). <strong>All four tiers are currently <code>0</code> on-chain</strong> — the table describes what the owner can activate, not what is charged today.</p>
+<blockquote>
+<p>The tier is chosen by the <strong>sender&#39;s accumulated monthly volume</strong>, including the current transfer. Two identical $50K transfers can fall in different tiers depending on how much the sender has already moved this month.</p>
+</blockquote>
+<hr>
+<h2 id="how-fees-are-calculated">How Fees Are Calculated</h2>
+<ol>
+<li>The transfer <code>amount</code> is converted to a 6-decimal USD value via the token&#39;s Chainlink price feed (<code>_toUsd6</code>).</li>
+<li>That value is added to the sender&#39;s monthly volume, and the tier rate (<code>feeBps</code>) for the resulting volume is selected.</li>
+<li>Fee in USD = <code>usdValue × feeBps / 100_000</code> (6-decimal USD).</li>
+<li>The USD fee is converted to <strong>$VEK</strong> via the VEK/USD feed.</li>
+<li>The $VEK fee is pulled from the sender at send time, separately from the transfer amount — <strong>the recipient always receives the full transfer amount</strong>.</li>
+</ol>
+<pre><code>feeUsd6 = usdValue6 × feeBps / 100_000
+feeVek  = feeUsd6 → VEK   (via the VEK/USD Chainlink feed)
+</code></pre>
+<h3 id="example-once-tier-1-is-active">Example (once tier 1 is active)</h3>
+<p>Sending 50,000 USDC while in tier 1 (0.005%):</p>
+<ul>
+<li><code>feeUsd = $50,000 × 0.00005 = $2.50</code></li>
+<li>If VEK = $0.25 → fee = <strong>10 VEK</strong></li>
+</ul>
+<hr>
+<h2 id="fee-cap-slippage-protection">Fee Cap (slippage protection)</h2>
+<p>There is <strong>no fixed maximum fee</strong>. Instead, the sender can pass a <strong>per-transaction cap</strong> via the 6-argument overloads:</p>
+<pre><code class="language-solidity">send(token, to, amount, txCode, settlementDate, maxFeeVek);
+sendNative(to, txCode, settlementDate, maxFeeVek);   // payable
+</code></pre>
+<p>If the computed $VEK fee would exceed <code>maxFeeVek</code>, the transaction reverts with <code>FeeExceedsMax(feeVek, maxFeeVek)</code>. Pass <code>maxFeeVek = 0</code> to disable the cap. Quote the value with <code>previewFee(sender, token, amount)</code> and pass it (optionally with a little headroom) as the cap — a moved or manipulated VEK price then can never pull more VEK than the sender approved.</p>
+<hr>
+<h2 id="fee-split">Fee Split</h2>
+<p>When a fee is charged, it is split immediately on-chain by <code>burnPercentage</code> (currently <strong>50</strong>, owner-adjustable 0–100):</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Destination</th>
+<th>Share</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Burn</strong></td>
+<td><code>burnPercentage</code>% (50%)</td>
+<td>Sent to <code>0x…dEaD</code> (<code>BURN_ADDRESS</code>)</td>
+</tr>
+<tr>
+<td><strong>Treasury</strong></td>
+<td>remainder (50%)</td>
+<td>Sent to <code>treasury()</code> (the Gnosis Safe)</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="fee-payment-requirements">Fee Payment Requirements</h2>
+<ul>
+<li>Fees apply <strong>only above the free tier</strong>. While all tiers are <code>0</code> (today), no VEK is needed at all.</li>
+<li>When a fee applies, the sender must hold enough <strong>$VEK</strong> and have approved the protocol to spend it — otherwise the send reverts.</li>
+<li>Every transferred token (and native ETH, and VEK when fees are on) must have a registered Chainlink feed that is not stale, or the send reverts (<code>PriceFeedNotSet</code> / <code>StalePrice</code> / <code>InvalidPrice</code>).</li>
+</ul>
+<blockquote>
+<p><strong>Tip:</strong> call <code>previewFee(sender, token, amount)</code> before sending to show the exact fee and to set <code>maxFeeVek</code>.</p>
+</blockquote>
+<hr>
+<h2 id="previewing-fees">Previewing Fees</h2>
+<pre><code class="language-typescript">// previewFee(sender, token, amount) — note the sender is required (tiers are per-sender)
+const feeInVek = await vektes.previewFee(
+  signer.address,
+  USDC_ADDRESS,
+  ethers.parseUnits(&quot;50000&quot;, 6) // 50,000 USDC
+);
+console.log(&quot;Fee:&quot;, ethers.formatUnits(feeInVek, 18), &quot;VEK&quot;); // &quot;0.0 VEK&quot; while free
+
+// Which tier applies to this sender right now
+const [tier, bps] = await vektes.getCurrentTier(signer.address);
+console.log(`Tier ${tier}, rate: ${Number(bps) / 1000}%`);
+</code></pre>
+<hr>
+<h2 id="oracle">Oracle</h2>
+<p>The protocol prices tokens (and VEK) in USD via a Chainlink-compatible <code>AggregatorV3Interface</code>. Each feed is registered per token by the owner with <code>setPriceFeed(token, feed, staleThreshold)</code>, and each has its <strong>own staleness threshold</strong> — an answer older than the threshold reverts the transfer (<code>StalePrice</code>). This protects fee calculation from stale or manipulated prices. Feeds and thresholds are owner-managed via the multisig.</p>
+<hr>
+<h2 id="fee-free-scenarios">Fee-Free Scenarios</h2>
+<p>No fee is charged when:</p>
+<ul>
+<li>All tiers are set to <code>0</code> (the current launch state), <strong>or</strong></li>
+<li>The sender&#39;s monthly volume is within the free tier (tier 0), <strong>or</strong></li>
+<li>The computed fee rounds to zero.</li>
+</ul>
+<blockquote>
+<p>There is <strong>no per-address fee whitelist</strong> in the contract. Fee exemptions, if ever offered, would be implemented by the tier schedule / governance — not a <code>whitelistSender</code> function.</p>
+</blockquote>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>

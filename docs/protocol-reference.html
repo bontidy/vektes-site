@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Protocol Reference — Vektes Docs</title>
+<meta name="description" content="Full function, event, and error reference for the deployed VektesProtocol contract." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/docs/protocol-reference" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/docs/docs.css" />
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/vesting">Vesting</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+  </div>
+</header>
+<div class="wrap docs-layout">
+  <aside class="sidebar">
+    <div class="side-label">Documentation</div>
+    <nav>
+      <a href="/docs/">Overview</a>
+      <a href="/docs/quick-start">Quick Start</a>
+      <a href="/docs/protocol-reference" aria-current="page">Protocol Reference</a>
+      <a href="/docs/fee-model">Fee Model</a>
+      <a href="/docs/integration-guide">Integration Guide</a>
+      <a href="/docs/contracts">Contracts</a>
+      <a href="/docs/security">Security</a>
+      <a href="/docs/faq">FAQ</a>
+    </nav>
+  </aside>
+  <main class="doc-content">
+<h1 id="protocol-reference">Protocol Reference</h1>
+<p>Complete function reference for the deployed Vektes smart contract (<code>VektesProtocol</code>, immutable).</p>
+<p><strong>Contract:</strong> <code>0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</code></p>
+<blockquote>
+<p><strong>Key model:</strong> a transfer is identified by the tuple <strong><code>(sender, recipient, txCode)</code></strong>. The on-chain key is <code>keccak256(abi.encodePacked(sender, recipient, txCode))</code>. A <code>txCode</code> is therefore unique <strong>per sender→recipient pair</strong>, and all lookups require the recipient as well as the sender.</p>
+<p><strong>Instant vs. scheduled:</strong> if <code>settlementDate &lt;= block.timestamp</code> (e.g. <code>0</code>), the transfer is <strong>instant</strong> — funds are delivered to the recipient inside the same transaction and <strong>no record is stored</strong> (only an <code>InstantTransfer</code> event is emitted). If <code>settlementDate</code> is in the future, the transfer is <strong>scheduled</strong> — funds are held until the recipient calls <code>claim()</code> (or the recipient <code>rejectTransfer()</code>s to refund the sender).</p>
+</blockquote>
+<hr>
+<h2 id="write-functions">Write Functions</h2>
+<h3 id="send"><code>send</code></h3>
+<p>Send an ERC-20 token transfer. Two overloads:</p>
+<pre><code class="language-solidity">function send(
+    address token,
+    address to,
+    uint256 amount,
+    bytes32 txCode,
+    uint256 settlementDate
+) external;
+
+// With a $VEK fee slippage cap:
+function send(
+    address token,
+    address to,
+    uint256 amount,
+    bytes32 txCode,
+    uint256 settlementDate,
+    uint256 maxFeeVek
+) external;
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>token</code></td>
+<td><code>address</code></td>
+<td>ERC-20 token contract address (must be on the supported-token allowlist)</td>
+</tr>
+<tr>
+<td><code>to</code></td>
+<td><code>address</code></td>
+<td>Recipient address</td>
+</tr>
+<tr>
+<td><code>amount</code></td>
+<td><code>uint256</code></td>
+<td>Transfer amount (token&#39;s smallest unit). The recipient receives the <strong>full amount</strong> — the fee is charged separately in $VEK.</td>
+</tr>
+<tr>
+<td><code>txCode</code></td>
+<td><code>bytes32</code></td>
+<td>Unique code for this sender→recipient pair (deduplication)</td>
+</tr>
+<tr>
+<td><code>settlementDate</code></td>
+<td><code>uint256</code></td>
+<td>Unix timestamp. <code>0</code> or any past/current time ⇒ instant delivery. A future time ⇒ held until then.</td>
+</tr>
+<tr>
+<td><code>maxFeeVek</code></td>
+<td><code>uint256</code></td>
+<td><em>(6-arg overload)</em> Max $VEK fee the sender will pay. Reverts <code>FeeExceedsMax</code> if the computed fee exceeds it. <code>0</code> disables the cap.</td>
+</tr>
+</tbody></table></div>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li><code>token</code> is on the allowlist (<code>supportedTokens(token) == true</code>) and has a registered price feed</li>
+<li>Caller has approved the protocol for ≥ <code>amount</code> of <code>token</code> (and, if a fee applies, ≥ <code>feeVek</code> of VEK)</li>
+<li><code>txCode</code> not previously used for this <code>(sender, to)</code> pair</li>
+<li><code>to != address(0)</code>, <code>amount &gt; 0</code></li>
+<li>Not paused</li>
+</ul>
+<p><strong>Events:</strong> <code>InstantTransfer</code> (instant) <strong>or</strong> <code>TransferCreated</code> (scheduled).</p>
+<p><strong>Reverts:</strong> <code>TokenNotSupported</code>, <code>DuplicateTransactionCode</code>, <code>ZeroAddress</code>, <code>ZeroAmount</code>, <code>FeeExceedsMax</code>, <code>PriceFeedNotSet</code>, <code>StalePrice</code>, <code>InvalidPrice</code>, <code>FeeTokenNotSet</code>, <code>EnforcedPause</code>.</p>
+<blockquote>
+<p>The contract credits the <strong>actual balance received</strong> (post-transfer), so transfers stay solvent — but fee-on-transfer / rebasing tokens are not on the allowlist by policy.</p>
+</blockquote>
+<hr>
+<h3 id="sendnative"><code>sendNative</code></h3>
+<p>Send native ETH. Two overloads (with and without the <code>maxFeeVek</code> cap). The amount is <code>msg.value</code>.</p>
+<pre><code class="language-solidity">function sendNative(address to, bytes32 txCode, uint256 settlementDate) external payable;
+function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external payable;
+</code></pre>
+<p><strong>Requirements:</strong> <code>msg.value &gt; 0</code>, <code>to != address(0)</code>, unused <code>txCode</code> for the pair, not paused. Native ETH does <strong>not</strong> need to be on the allowlist, but the ETH/USD price feed must be registered.</p>
+<p><strong>Events:</strong> <code>InstantTransfer</code> or <code>TransferCreated</code> with <code>token = address(0)</code>.</p>
+<hr>
+<h3 id="claim"><code>claim</code></h3>
+<p>Recipient pulls funds from a <strong>scheduled</strong> transfer after its settlement date.</p>
+<pre><code class="language-solidity">function claim(address sender, bytes32 txCode) external;
+</code></pre>
+<p>The caller is implicitly the recipient (the key is <code>keccak256(sender, msg.sender, txCode)</code>).</p>
+<p><strong>Requirements:</strong></p>
+<ul>
+<li>The transfer exists (was scheduled — instant transfers are already delivered and have no record)</li>
+<li>Caller is the recipient</li>
+<li><code>block.timestamp &gt;= settlementDate</code></li>
+<li>Not already claimed or rejected</li>
+</ul>
+<p><strong>Events:</strong> <code>TransferClaimed</code>.</p>
+<p><strong>Reverts:</strong> <code>TransferNotFound</code>, <code>NotRecipient</code>, <code>SettlementDateNotReached</code>, <code>AlreadyClaimed</code>, <code>AlreadyCancelled</code>.</p>
+<blockquote>
+<p><code>claim</code> is <strong>not</strong> pausable — a pause never traps funds already locked in the contract.</p>
+</blockquote>
+<hr>
+<h3 id="rejecttransfer"><code>rejectTransfer</code></h3>
+<p>Recipient declines a scheduled transfer; the locked funds are refunded to the <strong>original sender</strong> (never to the recipient).</p>
+<pre><code class="language-solidity">function rejectTransfer(address sender, bytes32 txCode) external;
+</code></pre>
+<p><strong>Requirements:</strong> caller is the recipient; not already claimed or rejected. Can be called <strong>any time before claiming</strong> — before or after the settlement date.</p>
+<p><strong>Events:</strong> <code>TransferRejected</code>.</p>
+<p><strong>Reverts:</strong> <code>TransferNotFound</code>, <code>NotRecipient</code>, <code>AlreadyClaimed</code>, <code>AlreadyCancelled</code>.</p>
+<hr>
+<h3 id="batchclaim"><code>batchClaim</code></h3>
+<p>Claim multiple scheduled transfers in one transaction.</p>
+<pre><code class="language-solidity">function batchClaim(address[] calldata senders, bytes32[] calldata txCodes) external;
+</code></pre>
+<ul>
+<li><code>senders.length</code> must equal <code>txCodes.length</code> (else reverts <code>&quot;Array length mismatch&quot;</code>).</li>
+<li><strong>Non-claimable entries are skipped, not reverted.</strong> Any <code>(senders[i], txCodes[i])</code> that doesn&#39;t exist, isn&#39;t the caller&#39;s, hasn&#39;t settled, or is already claimed/rejected is silently skipped — the rest still process. (Contrast with <code>claim</code>, which reverts.)</li>
+</ul>
+<p><strong>Events:</strong> one <code>TransferClaimed</code> per successfully claimed transfer.</p>
+<hr>
+<h2 id="view-functions">View Functions</h2>
+<h3 id="gettransfer"><code>getTransfer</code></h3>
+<pre><code class="language-solidity">function getTransfer(address sender, address recipient, bytes32 txCode)
+    external view returns (Transfer memory);
+</code></pre>
+<p>Returns the stored <code>Transfer</code> for a <strong>scheduled</strong> transfer. For instant transfers (or unknown keys) all fields are zero — instant transfers are not stored; track them via the <code>InstantTransfer</code> event.</p>
+<pre><code class="language-solidity">struct Transfer {
+    address token;          // ERC-20 address (address(0) = native ETH)
+    address sender;         // original sender
+    address recipient;      // designated recipient
+    uint256 amount;         // amount owed to the recipient (delivered in full)
+    uint256 fee;            // protocol fee charged, denominated in $VEK
+    uint256 settlementDate; // unix timestamp claim becomes available
+    uint256 createdAt;      // block timestamp of creation
+    bytes32 txCode;         // user-provided code
+    bool claimed;           // recipient has claimed
+    bool cancelled;         // recipient rejected (funds refunded to sender)
+}
+</code></pre>
+<h3 id="isclaimable"><code>isClaimable</code></h3>
+<pre><code class="language-solidity">function isClaimable(address sender, address recipient, bytes32 txCode) external view returns (bool);
+</code></pre>
+<p><code>true</code> when the (scheduled) transfer exists, is not claimed, not cancelled, and <code>block.timestamp &gt;= settlementDate</code>.</p>
+<h3 id="iscodeused"><code>isCodeUsed</code></h3>
+<pre><code class="language-solidity">function isCodeUsed(address sender, address recipient, bytes32 txCode) external view returns (bool);
+</code></pre>
+<p>Whether a code has already been used for a <code>(sender, recipient)</code> pair. Useful to pre-validate before sending.</p>
+<h3 id="previewfee"><code>previewFee</code></h3>
+<pre><code class="language-solidity">function previewFee(address sender, address token, uint256 amount) external view returns (uint256 feeInVek);
+</code></pre>
+<p>The protocol fee (in $VEK base units) that <code>sender</code> would pay to transfer <code>amount</code> of <code>token</code>. It accounts for the sender&#39;s current monthly volume tier and equals the fee actually charged — so it&#39;s safe to pass as <code>maxFeeVek</code>. Returns <code>0</code> on the free tier (which is every tier today). See <a href="/docs/fee-model">Fee Model</a>.</p>
+<h3 id="getcurrenttier"><code>getCurrentTier</code></h3>
+<pre><code class="language-solidity">function getCurrentTier(address sender) external view returns (uint256 tierIndex, uint256 feeBps);
+</code></pre>
+<p>The fee tier that currently applies to <code>sender</code>, based on their <strong>monthly (rolling 30-day) volume</strong>. <code>feeBps</code> is in units of 0.001% (e.g. <code>5</code> = 0.005%). Note the tier depends on the <em>sender&#39;s accumulated volume</em>, not the size of any single transfer.</p>
+<h3 id="public-getters">Public getters</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Getter</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>transfers(bytes32 key)</code></td>
+<td>The raw <code>Transfer</code> tuple by its key</td>
+</tr>
+<tr>
+<td><code>usedCodes(bytes32 key)</code></td>
+<td>Whether a code-key is used</td>
+</tr>
+<tr>
+<td><code>monthlyVolume(address)</code> / <code>volumeResetMonth(address)</code></td>
+<td>Sender&#39;s tracked USD-6 volume and its 30-day epoch</td>
+</tr>
+<tr>
+<td><code>feeTiers(uint256 i)</code></td>
+<td><code>(threshold, feeBps)</code> for tier <code>i</code></td>
+</tr>
+<tr>
+<td><code>treasury()</code> / <code>feeToken()</code> / <code>burnPercentage()</code></td>
+<td>Fee routing config</td>
+</tr>
+<tr>
+<td><code>BURN_ADDRESS()</code></td>
+<td><code>0x…dEaD</code></td>
+</tr>
+<tr>
+<td><code>supportedTokens(address)</code></td>
+<td>Allowlist membership</td>
+</tr>
+<tr>
+<td><code>priceFeeds(address)</code> / <code>stalePriceThreshold(address)</code></td>
+<td>Chainlink feed + max age per token</td>
+</tr>
+<tr>
+<td><code>totalTransfers()</code> / <code>totalFeesCollected()</code></td>
+<td>Lifetime counters</td>
+</tr>
+<tr>
+<td><code>owner()</code> / <code>pendingOwner()</code> / <code>paused()</code></td>
+<td>Ownable2Step + Pausable state</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="events">Events</h2>
+<pre><code class="language-solidity">event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient,
+                      address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt);
+event InstantTransfer(address indexed sender, address indexed recipient,
+                      address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 timestamp);
+event TransferClaimed(bytes32 indexed transferKey, address indexed recipient, address token, uint256 amount, uint256 claimedAt);
+event TransferRejected(bytes32 indexed transferKey, address indexed recipient, address indexed sender, address token, uint256 amount, uint256 rejectedAt);
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Event</th>
+<th>Emitted When</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>InstantTransfer</code></td>
+<td>An instant transfer (<code>settlementDate &lt;= now</code>) is delivered</td>
+</tr>
+<tr>
+<td><code>TransferCreated</code></td>
+<td>A scheduled transfer (future <code>settlementDate</code>) is locked</td>
+</tr>
+<tr>
+<td><code>TransferClaimed</code></td>
+<td>A recipient claims a scheduled transfer</td>
+</tr>
+<tr>
+<td><code>TransferRejected</code></td>
+<td>A recipient rejects and the sender is refunded</td>
+</tr>
+</tbody></table></div>
+<p>Admin events: <code>FeeTierUpdated</code>, <code>TreasuryUpdated</code>, <code>BurnPercentageUpdated</code>, <code>TokenSupportUpdated</code>, <code>PriceFeedUpdated</code>, <code>StalePriceThresholdUpdated</code>, <code>FeeTokenUpdated</code>, plus <code>OwnershipTransferStarted</code> / <code>OwnershipTransferred</code> (Ownable2Step) and <code>Paused</code> / <code>Unpaused</code>.</p>
+<hr>
+<h2 id="error-reference">Error Reference</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>DuplicateTransactionCode(bytes32 txCode, address recipient)</code></td>
+<td>Code already used for this sender→recipient pair</td>
+</tr>
+<tr>
+<td><code>ZeroAddress()</code></td>
+<td>Recipient is the zero address</td>
+</tr>
+<tr>
+<td><code>ZeroAmount()</code></td>
+<td>Amount / <code>msg.value</code> is 0</td>
+</tr>
+<tr>
+<td><code>TokenNotSupported(address token)</code></td>
+<td>Token is not on the allowlist</td>
+</tr>
+<tr>
+<td><code>NotRecipient(address caller, address expectedRecipient)</code></td>
+<td>Caller is not the transfer&#39;s recipient</td>
+</tr>
+<tr>
+<td><code>TransferNotFound(bytes32 transferKey)</code></td>
+<td>No scheduled transfer for this key</td>
+</tr>
+<tr>
+<td><code>SettlementDateNotReached(uint256 settlementDate, uint256 currentTime)</code></td>
+<td>Claimed before settlement</td>
+</tr>
+<tr>
+<td><code>AlreadyClaimed(bytes32 transferKey)</code></td>
+<td>Transfer already claimed</td>
+</tr>
+<tr>
+<td><code>AlreadyCancelled(bytes32 transferKey)</code></td>
+<td>Transfer already rejected</td>
+</tr>
+<tr>
+<td><code>FeeExceedsMax(uint256 feeVek, uint256 maxFeeVek)</code></td>
+<td>Computed $VEK fee exceeded the sender&#39;s cap</td>
+</tr>
+<tr>
+<td><code>PriceFeedNotSet(address token)</code></td>
+<td>No Chainlink feed registered for the token / fee token</td>
+</tr>
+<tr>
+<td><code>InvalidPrice(address token)</code></td>
+<td>Oracle returned a non-positive price</td>
+</tr>
+<tr>
+<td><code>StalePrice(address token)</code></td>
+<td>Oracle answer older than the token&#39;s staleness threshold</td>
+</tr>
+<tr>
+<td><code>FeeTokenNotSet()</code></td>
+<td>Fee token unconfigured (only reachable if a fee is due)</td>
+</tr>
+<tr>
+<td><code>InsufficientNativeValue(uint256 sent, uint256 required)</code></td>
+<td>Native value below what&#39;s required</td>
+</tr>
+<tr>
+<td><code>EnforcedPause()</code></td>
+<td>New sends attempted while paused</td>
+</tr>
+</tbody></table></div>
+<p>Standard OpenZeppelin errors also apply: <code>OwnableUnauthorizedAccount</code>, <code>OwnableInvalidOwner</code>, <code>ReentrancyGuardReentrantCall</code>, <code>SafeERC20FailedOperation</code>.</p>
+<hr>
+<h2 id="admin-functions-owner-only">Admin Functions (owner-only)</h2>
+<p>The owner is the Gnosis Safe (Ownable2Step). See <a href="/docs/security">Security</a> for what the owner can and cannot do.</p>
+<p><code>pause()</code> · <code>unpause()</code> · <code>setTreasury(address)</code> · <code>setBurnPercentage(uint256)</code> · <code>setTokenSupport(address, bool)</code> · <code>setPriceFeed(address token, address feed, uint256 threshold)</code> · <code>setStalePriceThreshold(address, uint256)</code> · <code>setFeeToken(address)</code> · <code>updateFeeTier(uint256 index, uint256 threshold, uint256 feeBps)</code> · <code>transferOwnership(address)</code> / <code>acceptOwnership()</code></p>
+
+  </main>
+</div>
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+      <div class="links">
+        <a href="/docs/">Docs</a>
+        <a href="/features.html">Features</a>
+        <a href="/vesting">Vesting</a>
+        <a href="/terms">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/risks">Risks</a>
+      </div>
+    </div>
+    <p class="disc"><b>Reference documentation for the deployed Vektes protocol.</b> Contract behavior is authoritative — always verify against the source-verified contracts on Etherscan. Nothing here is financial, investment, legal, or tax advice. © 2026 Vektes.</p>
+  </div>
+</footer>
+</body>
+</html>
