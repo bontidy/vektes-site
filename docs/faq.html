@@ -85,6 +85,8 @@
 <p>No — on the <strong>sender&#39;s cumulative volume over a rolling ~30-day window</strong>. Two transfers of the same size can land in different tiers depending on the sender&#39;s monthly total.</p>
 <h3 id="where-do-fees-go">Where do fees go?</h3>
 <p>Split by <code>burnPercentage</code> (currently 50): half burned to <code>0x…dEaD</code>, half to the treasury (the Gnosis Safe). The split is owner-adjustable.</p>
+<h3 id="when-will-fees-be-activated">When will fees be activated?</h3>
+<p>They&#39;re currently <code>0</code> (fee-free launch), so the burn mechanism is dormant and no $VEK is needed to transact — $VEK&#39;s protocol-fee utility is latent until fees are switched on. Turning fees on is a <strong>governance decision</strong>: the owner sets non-zero tiers via <code>updateFeeTier</code> once the protocol has sustained real usage. There&#39;s no fixed date, and the specific trigger (a volume / active-user threshold or a governance vote) is being finalized and will be announced. Until then, transfers are completely free. See <a href="/docs/fee-model#fee-activation">Fee Model → Fee Activation</a>.</p>
 <hr>
 <h2 id="claiming">Claiming</h2>
 <h3 id="who-can-claim">Who can claim?</h3>

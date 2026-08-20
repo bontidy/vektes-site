@@ -158,6 +158,18 @@ console.log(`Tier ${tier}, rate: ${Number(bps) / 1000}%`);
 <h2 id="oracle">Oracle</h2>
 <p>The protocol prices tokens (and VEK) in USD via a Chainlink-compatible <code>AggregatorV3Interface</code>. Each feed is registered per token by the owner with <code>setPriceFeed(token, feed, staleThreshold)</code>, and each has its <strong>own staleness threshold</strong> — an answer older than the threshold reverts the transfer (<code>StalePrice</code>). This protects fee calculation from stale or manipulated prices. Feeds and thresholds are owner-managed via the multisig.</p>
 <hr>
+<h2 id="fee-activation">Fee Activation</h2>
+<p>The protocol launched <strong>fee-free</strong> — all tiers are <code>0</code> today. While fees are <code>0</code>:</p>
+<ul>
+<li>No protocol fee is charged, and no $VEK is required to transact.</li>
+<li>The fee-burn mechanism is <strong>dormant</strong> — nothing is burned or routed to the treasury, because that only happens when a fee is actually collected.</li>
+<li>$VEK&#39;s protocol-fee utility is therefore <strong>latent</strong> until fees are switched on.</li>
+</ul>
+<p>Fees are turned on by the protocol owner (the Gnosis Safe, moving toward on-chain governance) by setting non-zero tiers via <code>updateFeeTier</code>. The standard schedule above (0.005% / 0.01% / 0.02% by monthly volume) can be activated once the protocol has meaningful, sustained settlement usage. There is <strong>no fixed date</strong> — activation is a governance decision and would be announced in advance.</p>
+<blockquote>
+<p><strong>Activation criteria (to be finalized by governance):</strong> the specific trigger — for example a sustained settlement-volume or active-user threshold, or an on-chain governance vote — is still being set and will be published here once decided. Until then, <strong>transfers are completely free.</strong></p>
+</blockquote>
+<hr>
 <h2 id="fee-free-scenarios">Fee-Free Scenarios</h2>
 <p>No fee is charged when:</p>
 <ul>

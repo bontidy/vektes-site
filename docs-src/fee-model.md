@@ -102,6 +102,20 @@ The protocol prices tokens (and VEK) in USD via a Chainlink-compatible `Aggregat
 
 ---
 
+## Fee Activation
+
+The protocol launched **fee-free** — all tiers are `0` today. While fees are `0`:
+
+- No protocol fee is charged, and no $VEK is required to transact.
+- The fee-burn mechanism is **dormant** — nothing is burned or routed to the treasury, because that only happens when a fee is actually collected.
+- $VEK's protocol-fee utility is therefore **latent** until fees are switched on.
+
+Fees are turned on by the protocol owner (the Gnosis Safe, moving toward on-chain governance) by setting non-zero tiers via `updateFeeTier`. The standard schedule above (0.005% / 0.01% / 0.02% by monthly volume) can be activated once the protocol has meaningful, sustained settlement usage. There is **no fixed date** — activation is a governance decision and would be announced in advance.
+
+> **Activation criteria (to be finalized by governance):** the specific trigger — for example a sustained settlement-volume or active-user threshold, or an on-chain governance vote — is still being set and will be published here once decided. Until then, **transfers are completely free.**
+
+---
+
 ## Fee-Free Scenarios
 
 No fee is charged when:

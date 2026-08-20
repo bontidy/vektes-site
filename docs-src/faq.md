@@ -86,6 +86,10 @@ No — on the **sender's cumulative volume over a rolling ~30-day window**. Two 
 
 Split by `burnPercentage` (currently 50): half burned to `0x…dEaD`, half to the treasury (the Gnosis Safe). The split is owner-adjustable.
 
+### When will fees be activated?
+
+They're currently `0` (fee-free launch), so the burn mechanism is dormant and no $VEK is needed to transact — $VEK's protocol-fee utility is latent until fees are switched on. Turning fees on is a **governance decision**: the owner sets non-zero tiers via `updateFeeTier` once the protocol has sustained real usage. There's no fixed date, and the specific trigger (a volume / active-user threshold or a governance vote) is being finalized and will be announced. Until then, transfers are completely free. See [Fee Model → Fee Activation](./fee-model.md#fee-activation).
+
 ---
 
 ## Claiming
