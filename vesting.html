@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$VEK Vesting Dashboard — Vektes</title>
+<meta name="description" content="Live $VEK supply breakdown & unlock schedule — 250M insider vesting (UNCX, 1yr cliff + 3yr linear), locked liquidity, and circulating float. All verifiable on-chain.">
+<meta name="theme-color" content="#00D4AA">
+<link rel="canonical" href="https://vektes.com/vesting">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --vk-bg:#0a0f1a; --vk-surface:#111827; --vk-surface-hover:#1a2332; --vk-border:#1e2d3d;
+  --vk-text:#e8edf4; --vk-text-secondary:#8b9bb4; --vk-text-muted:#5a6b80;
+  --vk-accent:#00D4AA; --vk-red:#ef4444; --vk-yellow:#f59e0b; --vk-blue:#3b82f6; --vk-purple:#8b5cf6;
+  --vk-font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --vk-mono:ui-monospace,'SF Mono','JetBrains Mono',Consolas,monospace; --vk-radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--vk-bg);font-family:var(--vk-font);color:var(--vk-text);padding:32px 20px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.container{max-width:1000px;margin:0 auto}
+h1{font-size:27px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:10px}
+h1 .ic{width:26px;height:26px;color:var(--vk-accent)}
+.subtitle{color:var(--vk-text-secondary);font-size:14px;margin-bottom:28px}
+.subtitle a{color:var(--vk-accent);text-decoration:none}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--vk-text-muted);font-family:var(--vk-mono)}
+.live b{width:7px;height:7px;border-radius:50%;background:var(--vk-accent);display:inline-block;animation:pulse 2s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.live b{animation:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.card{background:var(--vk-surface);border:1px solid var(--vk-border);border-radius:var(--vk-radius);padding:22px 24px;margin-bottom:18px}
+.card-title{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--vk-text-muted);margin-bottom:14px;font-weight:600}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+.kpi{background:var(--vk-surface);border:1px solid var(--vk-border);border-radius:var(--vk-radius);padding:18px 20px}
+.kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--vk-text-muted);margin-bottom:6px}
+.kpi-value{font-size:23px;font-weight:700;font-family:var(--vk-mono);color:var(--vk-text)}
+.kpi-value.accent{color:var(--vk-accent)} .kpi-value.red{color:#f87171} .kpi-value.yellow{color:var(--vk-yellow)}
+.kpi-sub{font-size:12px;color:var(--vk-text-secondary);margin-top:4px}
+.donut-wrap{display:flex;gap:28px;align-items:center;flex-wrap:wrap;justify-content:center}
+.donut-wrap svg{flex:0 0 auto}
+.legend{display:flex;flex-direction:column;gap:12px;min-width:220px;flex:1}
+.legend-row{display:flex;align-items:center;gap:10px;font-size:13px}
+.legend-dot{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+.legend-name{color:var(--vk-text-secondary);flex:1}
+.legend-val{font-family:var(--vk-mono);color:var(--vk-text)}
+.legend-pct{font-family:var(--vk-mono);color:var(--vk-text-muted);min-width:52px;text-align:right}
+.chart-scroll{overflow-x:auto}
+.alloc-table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+.alloc-table th{text-align:left;color:var(--vk-text-muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--vk-border);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.alloc-table td{padding:12px;border-bottom:1px solid rgba(30,45,61,.5);vertical-align:top}
+.alloc-table tr:hover td{background:var(--vk-surface-hover)}
+.status-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:3px 9px;border-radius:100px;font-weight:500;white-space:nowrap}
+.status-badge .ic{width:11px;height:11px}
+.status-locked{background:rgba(239,68,68,.12);color:#f87171}
+.status-circulating{background:rgba(0,212,170,.12);color:var(--vk-accent)}
+.status-lp{background:rgba(59,130,246,.12);color:#60a5fa}
+.mono{font-family:var(--vk-mono);font-size:13px}
+.addr{color:var(--vk-text-secondary);font-family:var(--vk-mono);font-size:11px}
+.addr a{color:var(--vk-accent);text-decoration:none;opacity:.85} .addr a:hover{opacity:1;text-decoration:underline}
+.timeline-item{display:flex;gap:16px;margin-bottom:20px;position:relative}
+.timeline-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--vk-accent);background:var(--vk-bg);margin-top:4px;flex-shrink:0;position:relative;z-index:1}
+.timeline-dot.past{background:var(--vk-accent)}
+.timeline-item:not(:last-child)::before{content:'';position:absolute;left:5px;top:16px;bottom:-8px;width:2px;background:var(--vk-border)}
+.timeline-date{font-size:12px;color:var(--vk-accent);font-weight:600;font-family:var(--vk-mono)}
+.timeline-label{font-size:14px;font-weight:500;margin-top:2px}
+.timeline-desc{font-size:12px;color:var(--vk-text-secondary);margin-top:2px}
+.links-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}
+.link-card{display:flex;align-items:center;gap:12px;background:var(--vk-surface-hover);border:1px solid var(--vk-border);border-radius:8px;padding:14px 16px;text-decoration:none;color:var(--vk-text);transition:border-color .15s}
+.link-card:hover{border-color:var(--vk-accent)}
+.link-card .ic{color:var(--vk-accent);width:18px;height:18px;flex:0 0 auto}
+.link-card .link-label{font-size:12px;color:var(--vk-text-muted)}
+.link-card .link-value{font-size:13px;font-family:var(--vk-mono)}
+.note{font-size:12px;color:var(--vk-text-muted);margin-top:14px;padding:12px 14px;background:rgba(0,212,170,.05);border-left:3px solid var(--vk-accent);border-radius:0 8px 8px 0}
+.note strong{color:var(--vk-text-secondary)}
+.foot{text-align:center;margin-top:30px;color:var(--vk-text-muted);font-size:12px}
+.foot code{font-family:var(--vk-mono)} .foot a{color:var(--vk-text-secondary);text-decoration:none}
+.ic{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+</style>
+</head>
+<body>
+
+<!-- inline icon sprite (self-contained; replaces the Font Awesome CDN) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3c3 4 6 7 6 10a6 6 0 0 1-12 0c0-3 3-6 6-10z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></symbol>
+  <symbol id="i-coins" viewBox="0 0 24 24"><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.66 2.69 3 6 3"/><ellipse cx="15" cy="14" rx="6" ry="3"/><path d="M9 14.5V17c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M13 3.5V8h4.5"/><path d="M9 13h6M9 16h6"/></symbol>
+  <symbol id="i-vault" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3.5"/><path d="M12 8.5V7M12 17v-1.5M8.5 12H7M17 12h-1.5"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v3M15.5 12v2"/></symbol>
+</defs></svg>
+
+<div class="container">
+  <h1><svg class="ic"><use href="#i-lock"/></svg> $VEK Token Vesting</h1>
+  <p class="subtitle">Live supply breakdown &amp; unlock schedule — verifiable on-chain. &mdash; <a href="https://vektes.com">vektes.com</a> &nbsp;·&nbsp; <span class="live" id="liveTag"><b></b>reading chain…</span></p>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Total Supply</div>
+      <div class="kpi-value">1,000,000,000</div>
+      <div class="kpi-sub">Fixed — no minting function</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Locked / Reserved</div>
+      <div class="kpi-value red" id="kpiLockedPct">98.99%</div>
+      <div class="kpi-sub"><span id="kpiLocked">989,909,469</span> VEK · Safe + vesting</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Circulating (CoinGecko)</div>
+      <div class="kpi-value accent" id="kpiCirc">10,090,531</div>
+      <div class="kpi-sub">~<span id="kpiCircPct">1.01</span>% of supply</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">True Free Float</div>
+      <div class="kpi-value yellow" id="kpiFloat">607,852</div>
+      <div class="kpi-sub">~<span id="kpiFloatPct">0.06</span>% (excl. locked LP)</div>
+    </div>
+  </div>
+
+  <!-- Donut -->
+  <div class="card">
+    <div class="card-title">Supply Distribution</div>
+    <div class="donut-wrap" id="donut"></div>
+  </div>
+
+  <!-- Allocation table -->
+  <div class="card">
+    <div class="card-title">Detailed Allocation</div>
+    <div class="chart-scroll">
+    <table class="alloc-table">
+      <thead><tr><th>Holder</th><th>Balance</th><th>% Supply</th><th>Status</th><th>Lock Details</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Gnosis Safe (Treasury)<br><span class="addr"><a href="https://etherscan.io/address/0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207" target="_blank" rel="noopener">0xBdCD…0207 ↗</a></span></td>
+          <td class="mono" data-k="treasury">739,909,469</td>
+          <td class="mono" data-p="treasury">73.99%</td>
+          <td><span class="status-badge status-locked"><svg class="ic"><use href="#i-lock"/></svg> Multisig</span></td>
+          <td>2-of-3 Gnosis Safe. No time-lock. Undistributed reserves.</td>
+        </tr>
+        <tr>
+          <td>UNCX Vesting (Insiders)<br><span class="addr"><a href="https://etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215?a=0xA98F06312b7614523d0f5e725e15fd20fB1b99F5" target="_blank" rel="noopener">0xA98F…99F5 ↗</a></span><br><span class="addr">vestingId 5035</span></td>
+          <td class="mono" data-k="vestingUncx">250,000,000</td>
+          <td class="mono" data-p="vestingUncx">25.00%</td>
+          <td><span class="status-badge status-locked"><svg class="ic"><use href="#i-lock"/></svg> UNCX Hard Lock</span></td>
+          <td>1-yr cliff (2027-08-04) → 3-yr linear to 2030-08-04.<br>Non-cancellable · non-transferable.<br>0 tokens released to date.</td>
+        </tr>
+        <tr>
+          <td>Uniswap V3 LP (VEK/USDT)<br><span class="addr"><a href="https://etherscan.io/address/0x95a03a0E0b09030Ef6a420735e84a82bB9D9244d" target="_blank" rel="noopener">Pool 0x95a0…244d ↗</a></span><br><span class="addr">Position #1344498 · Lock #1104</span></td>
+          <td class="mono" data-k="lp">9,482,679</td>
+          <td class="mono" data-p="lp">0.95%</td>
+          <td><span class="status-badge status-lp"><svg class="ic"><use href="#i-drop"/></svg> LP Locked</span></td>
+          <td>12 months via UNCX UniV3 Locker.<br>Unlocks ~2027-08-04.<br>Locker 0xFD23…e6DE</td>
+        </tr>
+        <tr>
+          <td>Public Wallets (Free Float)</td>
+          <td class="mono" data-k="publicFloat">607,852</td>
+          <td class="mono" data-p="publicFloat">0.06%</td>
+          <td><span class="status-badge status-circulating"><svg class="ic"><use href="#i-check"/></svg> Circulating</span></td>
+          <td>Freely tradeable on Uniswap V3.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><strong>Note:</strong> CoinGecko reports ~10.09M circulating (= total − Safe − UNCX vesting). That figure includes the ~9.4M in the locked LP position; true freely-tradeable float is the ~0.6M above.</div>
+  </div>
+
+  <!-- Unlock curve -->
+  <div class="card">
+    <div class="card-title">250M Insider Vesting — Unlock Curve</div>
+    <div class="chart-scroll" id="curve"></div>
+    <div class="note"><strong>Curve detail:</strong> 0 tokens claimable until the cliff (2027-08-04 00:00:00 UTC). From that instant it accrues linearly, reaching 250M on 2030-08-04 00:00:00 UTC. No chunk is released at the cliff — it starts from zero and accrues linearly. Verified on-chain: <code>getVestingSchedule(5035)</code>, tranches [ (1817337600, 0), (1912032000, full) ].</div>
+  </div>
+
+  <!-- Key dates -->
+  <div class="card">
+    <div class="card-title">Key Dates</div>
+    <div class="timeline-item"><div class="timeline-dot past"></div><div><div class="timeline-date">2026-07-31 16:52:47 UTC</div><div class="timeline-label">Token Generation Event (TGE)</div><div class="timeline-desc">1,000,000,000 VEK minted. Block 25,654,161 · token 0xb4fa…d215.</div></div></div>
+    <div class="timeline-item"><div class="timeline-dot past"></div><div><div class="timeline-date">2026-08-04 07:04:59 UTC</div><div class="timeline-label">Locks created + LP seeded</div><div class="timeline-desc">250M deposited into UNCX VestingManager (vestingId 5035). LP #1344498 locked 12 months. Block 25,679,937.</div></div></div>
+    <div class="timeline-item"><div class="timeline-dot"></div><div><div class="timeline-date">2027-08-04 00:00:00 UTC</div><div class="timeline-label">Cliff — linear vesting begins</div><div class="timeline-desc">Insider vesting starts accruing linearly from 0. LP lock also expires (liquidity becomes removable). Unix 1817337600.</div></div></div>
+    <div class="timeline-item"><div class="timeline-dot"></div><div><div class="timeline-date">2028-08-04</div><div class="timeline-label">~83.3M vested</div><div class="timeline-desc">~33.3% of 250M accrued (1 year into the linear window).</div></div></div>
+    <div class="timeline-item"><div class="timeline-dot"></div><div><div class="timeline-date">2029-08-04</div><div class="timeline-label">~166.7M vested</div><div class="timeline-desc">~66.7% of 250M accrued.</div></div></div>
+    <div class="timeline-item"><div class="timeline-dot"></div><div><div class="timeline-date">2030-08-04 00:00:00 UTC</div><div class="timeline-label">Fully vested</div><div class="timeline-desc">All 250,000,000 VEK claimable. Unix 1912032000. Vesting complete.</div></div></div>
+  </div>
+
+  <!-- Verify -->
+  <div class="card">
+    <div class="card-title">Verify On-Chain</div>
+    <div class="links-grid">
+      <a class="link-card" href="https://etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215" target="_blank" rel="noopener"><svg class="ic"><use href="#i-coins"/></svg><div><div class="link-label">VEK Token Contract</div><div class="link-value">0xb4fa…d215</div></div></a>
+      <a class="link-card" href="https://etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7" target="_blank" rel="noopener"><svg class="ic"><use href="#i-doc"/></svg><div><div class="link-label">Vektes Protocol</div><div class="link-value">0xd055…E8B7</div></div></a>
+      <a class="link-card" href="https://app.uncx.network/lockers/token/chain/1/address/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215" target="_blank" rel="noopener"><svg class="ic"><use href="#i-lock"/></svg><div><div class="link-label">UNCX Vesting Proof (250M)</div><div class="link-value">vestingId 5035</div></div></a>
+      <a class="link-card" href="https://safe-lockers.uncx.network/lockers/univ3/chain/1/address/0x95a03a0e0b09030ef6a420735e84a82bb9d9244d/lock/1104" target="_blank" rel="noopener"><svg class="ic"><use href="#i-drop"/></svg><div><div class="link-label">LP Lock Proof (UNCX)</div><div class="link-value">Lock #1104</div></div></a>
+      <a class="link-card" href="https://etherscan.io/address/0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207" target="_blank" rel="noopener"><svg class="ic"><use href="#i-vault"/></svg><div><div class="link-label">Gnosis Safe (Treasury)</div><div class="link-value">0xBdCD…0207 · 2-of-3</div></div></a>
+      <a class="link-card" href="https://etherscan.io/address/0xFD235968e65B0990584585763f837A5b5330e6DE" target="_blank" rel="noopener"><svg class="ic"><use href="#i-key"/></svg><div><div class="link-label">UNCX UniV3 Locker</div><div class="link-value">0xFD23…e6DE</div></div></a>
+    </div>
+  </div>
+
+  <div class="foot">
+    <p><span id="footAsOf">Data read live from Ethereum mainnet.</span><br>
+    Real-time source: <a href="https://app.vektes.com/vek/distribution" target="_blank" rel="noopener"><code>app.vektes.com/vek/distribution</code></a> · schedule: <code>getVestingSchedule(5035)</code> on UNCX VestingManager <code>0xA98F…99F5</code>.</p>
+  </div>
+</div>
+
+<script>
+// Self-contained — no external libraries. Charts are hand-drawn SVG; figures fetched live from the
+// on-chain supply endpoint, with the values below as a fallback if the fetch fails.
+(function(){
+  var TOTAL = 1000000000;
+  var SEG = [
+    { key:'treasury',    name:'Treasury (2-of-3 Safe)', color:'#ef4444', v:739909469 },
+    { key:'vestingUncx', name:'Insider vesting (UNCX)',  color:'#8b5cf6', v:250000000 },
+    { key:'lp',          name:'LP locked (UNCX)',        color:'#3b82f6', v:9482679 },
+    { key:'publicFloat', name:'Public float',            color:'#00D4AA', v:607852 }
+  ];
+  var fmt = function(n){ return Math.round(n).toLocaleString('en-US'); };
+  var pct = function(n){ return (n*100/TOTAL).toFixed(2); };
+
+  function renderDonut(){
+    var cx=120, cy=120, r=88, sw=30, C=2*Math.PI*r, cum=0, ring='';
+    SEG.forEach(function(s){
+      var len = (s.v/TOTAL)*C;
+      ring += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="'+sw+'" '
+            + 'stroke-dasharray="'+len.toFixed(2)+' '+(C-len).toFixed(2)+'" stroke-dashoffset="'+(-cum).toFixed(2)+'" '
+            + 'transform="rotate(-90 '+cx+' '+cy+')"></circle>';
+      cum += len;
+    });
+    var lockedPct = ((SEG[0].v+SEG[1].v)*100/TOTAL);
+    var svg = '<svg width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="Supply distribution donut">'
+      + ring
+      + '<text x="120" y="114" text-anchor="middle" fill="#e8edf4" font-family="ui-monospace,monospace" font-size="30" font-weight="700">'+lockedPct.toFixed(1)+'%</text>'
+      + '<text x="120" y="134" text-anchor="middle" fill="#5a6b80" font-size="12">locked / reserved</text></svg>';
+    var legend = '<div class="legend">' + SEG.map(function(s){
+      return '<div class="legend-row"><span class="legend-dot" style="background:'+s.color+'"></span>'
+        + '<span class="legend-name">'+s.name+'</span>'
+        + '<span class="legend-val">'+fmt(s.v)+'</span>'
+        + '<span class="legend-pct">'+pct(s.v)+'%</span></div>';
+    }).join('') + '</div>';
+    document.getElementById('donut').innerHTML = svg + legend;
+  }
+
+  function renderCurve(){
+    var W=820, H=270, padL=52, padR=20, padT=16, padB=34;
+    var x0=padL, x1=W-padR, y0=H-padB, y1=padT, vMax=250e6;
+    var tStart=Date.UTC(2026,6,31), tEnd=Date.UTC(2031,0,1);
+    var X=function(t){ return x0+(t-tStart)/(tEnd-tStart)*(x1-x0); };
+    var Y=function(v){ return y0-(v/vMax)*(y0-y1); };
+    var cliff=Date.UTC(2027,7,4), end=Date.UTC(2030,7,4);
+    var g='';
+    // y gridlines + labels
+    [0,62.5e6,125e6,187.5e6,250e6].forEach(function(v){
+      var y=Y(v);
+      g+='<line x1="'+x0+'" y1="'+y+'" x2="'+x1+'" y2="'+y+'" stroke="#1e2d3d" stroke-width="1"/>';
+      g+='<text x="'+(x0-8)+'" y="'+(y+4)+'" text-anchor="end" fill="#5a6b80" font-size="11" font-family="ui-monospace,monospace">'+(v/1e6)+'M</text>';
+    });
+    // x year labels
+    [2026,2027,2028,2029,2030,2031].forEach(function(yr){
+      var x=X(Date.UTC(yr,0,1)); if(x<x0-1||x>x1+1) return;
+      g+='<text x="'+x+'" y="'+(y0+20)+'" text-anchor="middle" fill="#5a6b80" font-size="11" font-family="ui-monospace,monospace">'+yr+'</text>';
+    });
+    // area + line
+    var pts=[[X(tStart),Y(0)],[X(cliff),Y(0)],[X(end),Y(250e6)],[X(tEnd),Y(250e6)]];
+    var line=pts.map(function(p,i){ return (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1); }).join(' ');
+    var area=line+' L'+X(tEnd).toFixed(1)+' '+y0+' L'+X(tStart).toFixed(1)+' '+y0+' Z';
+    g+='<defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00D4AA" stop-opacity="0.28"/><stop offset="1" stop-color="#00D4AA" stop-opacity="0.02"/></linearGradient></defs>';
+    g+='<path d="'+area+'" fill="url(#ag)"/>';
+    g+='<path d="'+line+'" fill="none" stroke="#00D4AA" stroke-width="2.5"/>';
+    // cliff marker
+    g+='<line x1="'+X(cliff)+'" y1="'+y1+'" x2="'+X(cliff)+'" y2="'+y0+'" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4 4"/>';
+    g+='<text x="'+(X(cliff)+5)+'" y="'+(y1+12)+'" fill="#f59e0b" font-size="11" font-family="ui-monospace,monospace">Cliff · 2027</text>';
+    g+='<circle cx="'+X(cliff)+'" cy="'+Y(0)+'" r="3.5" fill="#f59e0b"/>';
+    g+='<circle cx="'+X(end)+'" cy="'+Y(250e6)+'" r="3.5" fill="#00D4AA"/>';
+    // today marker
+    var now=Date.now();
+    if(now>tStart && now<tEnd){
+      g+='<line x1="'+X(now)+'" y1="'+y1+'" x2="'+X(now)+'" y2="'+y0+'" stroke="#8b9bb4" stroke-width="1" stroke-dasharray="2 3"/>';
+      g+='<text x="'+(X(now)+4)+'" y="'+(y0-6)+'" fill="#8b9bb4" font-size="10" font-family="ui-monospace,monospace">today</text>';
+    }
+    document.getElementById('curve').innerHTML =
+      '<svg width="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMidYMid meet" style="min-width:560px" role="img" aria-label="250M insider vesting unlock curve">'+g+'</svg>';
+  }
+
+  function applyLive(d){
+    SEG.forEach(function(s){ if(typeof d[s.key]==='number') s.v=d[s.key]; });
+    // table
+    SEG.forEach(function(s){
+      document.querySelectorAll('[data-k="'+s.key+'"]').forEach(function(e){ e.textContent=fmt(s.v); });
+      document.querySelectorAll('[data-p="'+s.key+'"]').forEach(function(e){ e.textContent=pct(s.v)+'%'; });
+    });
+    // KPIs
+    var locked = d.treasury + d.vestingUncx;
+    document.getElementById('kpiLocked').textContent = fmt(locked);
+    document.getElementById('kpiLockedPct').textContent = (locked*100/TOTAL).toFixed(2)+'%';
+    document.getElementById('kpiCirc').textContent = fmt(d.circulating);
+    document.getElementById('kpiCircPct').textContent = (d.circulating*100/TOTAL).toFixed(2);
+    document.getElementById('kpiFloat').textContent = fmt(d.publicFloat);
+    document.getElementById('kpiFloatPct').textContent = (d.publicFloat*100/TOTAL).toFixed(2);
+    renderDonut();
+    var tag=document.getElementById('liveTag'); if(tag) tag.innerHTML='<b></b>live · on-chain';
+    if(d.asOf){ var dt=new Date(d.asOf); document.getElementById('footAsOf').textContent =
+      'Data read live from Ethereum mainnet · as of '+dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'})+', '+d.asOf.substr(11,5)+' UTC.'; }
+  }
+
+  renderDonut(); renderCurve();
+  fetch('https://app.vektes.com/vek/distribution',{cache:'no-store'})
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){ if(d) applyLive(d); else { var t=document.getElementById('liveTag'); if(t) t.textContent='snapshot'; } })
+    .catch(function(){ var t=document.getElementById('liveTag'); if(t) t.textContent='snapshot'; });
+})();
+</script>
+</body>
+</html>
