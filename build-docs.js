@@ -59,7 +59,11 @@ function convert(md) {
 
 const firstH1 = (html) => {
   const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
-  return m ? m[1].replace(/<[^>]+>/g, "") : "Docs";
+  if (!m) return "Docs";
+  // Strip tags and DECODE entities (marked already escaped them); esc() re-encodes once in the shell.
+  return m[1].replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 };
 
 const sidebar = (active) =>
