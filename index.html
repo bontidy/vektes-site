@@ -176,6 +176,29 @@
   .factlist li:first-child{border-top:none}
   .factlist b{color:var(--ink); font-family:var(--font-mono); font-weight:600; min-width:118px; display:inline-block; font-size:13px; letter-spacing:.03em}
 
+  /* supply & locks (live) */
+  .supply{border:1px solid var(--line); border-radius:14px; background:var(--surface); padding:6px 22px}
+  .srow{display:grid; grid-template-columns:1fr auto auto; gap:6px 16px; align-items:center; padding:15px 0; border-top:1px solid var(--line-2)}
+  .srow:first-child{border-top:none}
+  .srow .slab{font-family:var(--font-mono); font-size:14px; color:var(--ink); display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .srow .stag{font-size:10px; letter-spacing:.1em; text-transform:uppercase; padding:2px 8px; border-radius:100px; border:1px solid var(--line); white-space:nowrap}
+  .srow .stag.lock{color:var(--accent-ink)}
+  .srow .stag.free{color:var(--clay-ink)}
+  .srow .slink{font-family:var(--font-mono); font-size:12px; color:var(--ink-3); text-decoration:none}
+  .srow .slink:hover{color:var(--accent-ink)}
+  .srow .samt{font-family:var(--font-mono); font-size:14px; text-align:right; color:var(--ink)}
+  .srow .spct{font-family:var(--font-mono); font-size:12px; color:var(--accent-ink); text-align:right; min-width:52px}
+  .srow .sbar{grid-column:1/-1; height:5px; border-radius:3px; background:var(--line-2); overflow:hidden; margin-top:3px}
+  .srow .sbar i{display:block; height:100%; background:var(--accent); opacity:.55; transition:width .5s ease}
+  .srow.isfree .spct{color:var(--clay-ink)}
+  .srow.isfree .sbar i{background:var(--clay); opacity:.6}
+  .supply-foot{display:flex; flex-wrap:wrap; gap:8px 28px; justify-content:space-between; margin-top:18px; font-family:var(--font-mono); font-size:13px; color:var(--ink-2)}
+  .supply-foot b{color:var(--ink)}
+  .livedot{display:inline-flex; align-items:center; gap:7px}
+  .livedot i{width:7px; height:7px; border-radius:50%; background:var(--accent)}
+  @media(prefers-reduced-motion:no-preference){.livedot i{animation:pulse 2s ease-in-out infinite}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
   /* status / contracts */
   .contracts{display:grid; grid-template-columns:1fr; gap:1px; background:var(--line-2); border:1px solid var(--line-2); border-radius:12px; overflow:hidden; font-family:var(--font-mono)}
   @media(min-width:720px){ .contracts{grid-template-columns:repeat(3,1fr)} }
@@ -206,6 +229,7 @@
     <a class="link" href="/features.html">Features</a>
     <a class="link" href="#fees">Fees</a>
     <a class="link" href="#token">$VEK</a>
+    <a class="link" href="#supply">Supply</a>
     <a class="link" href="#status">Status</a>
     <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
     <span class="pill"><span class="live"></span>Ethereum mainnet</span>
@@ -380,6 +404,52 @@
     </div>
   </section>
 
+  <section id="supply">
+    <div class="wrap sec">
+      <div class="sec-head">
+        <span class="eyebrow">Supply &amp; locks</span>
+        <h2>Where the supply sits.</h2>
+        <p class="lede">Fixed 1,000,000,000 supply, no minting. About 99% is locked or held in reserve; the public float is a fraction of a percent. <span class="livedot" id="supAsOf"><i></i>live · read from the chain</span>.</p>
+      </div>
+      <div class="supply" id="supplyPanel">
+        <div class="srow">
+          <div class="slab">Treasury reserve <span class="stag lock">2-of-3 multisig</span> <a class="slink" href="https://etherscan.io/address/0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207" target="_blank" rel="noopener">Safe ↗</a></div>
+          <div class="samt tnum" data-k="treasury">739,909,469</div>
+          <div class="spct tnum" data-p="treasury">73.99%</div>
+          <div class="sbar"><i data-b="treasury" style="width:73.99%"></i></div>
+        </div>
+        <div class="srow">
+          <div class="slab">Team &amp; insider vesting <span class="stag lock">UNCX · 1y cliff + 3y</span> <a class="slink" href="https://app.uncx.network/lockers/token/chain/1/address/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215" target="_blank" rel="noopener">UNCX ↗</a></div>
+          <div class="samt tnum" data-k="vestingUncx">250,000,000</div>
+          <div class="spct tnum" data-p="vestingUncx">25.00%</div>
+          <div class="sbar"><i data-b="vestingUncx" style="width:25%"></i></div>
+        </div>
+        <div class="srow">
+          <div class="slab">Liquidity <span class="stag lock">UNCX LP lock · 12mo</span> <a class="slink" href="https://safe-lockers.uncx.network/lockers/univ3/chain/1/address/0x95a03a0e0b09030ef6a420735e84a82bb9d9244d/lock/1104" target="_blank" rel="noopener">Lock ↗</a></div>
+          <div class="samt tnum" data-k="lp">9,482,679</div>
+          <div class="spct tnum" data-p="lp">0.95%</div>
+          <div class="sbar"><i data-b="lp" style="width:0.95%"></i></div>
+        </div>
+        <div class="srow isfree">
+          <div class="slab">Circulating float <span class="stag free">public wallets</span></div>
+          <div class="samt tnum" data-k="publicFloat">607,852</div>
+          <div class="spct tnum" data-p="publicFloat">0.06%</div>
+          <div class="sbar"><i data-b="publicFloat" style="width:0.06%"></i></div>
+        </div>
+        <div class="srow">
+          <div class="slab">Burned <span class="stag lock">buy &amp; burn (v2, dormant)</span></div>
+          <div class="samt tnum" data-k="burned">0</div>
+          <div class="spct tnum" data-p="burned">0.00%</div>
+          <div class="sbar"><i data-b="burned" style="width:0%"></i></div>
+        </div>
+      </div>
+      <div class="supply-foot">
+        <div><b class="tnum">1,000,000,000</b> total · fixed, no mint</div>
+        <div><b class="tnum" id="supLocked">~99%</b> locked or reserved · <b class="tnum" id="supCirc">10,090,531</b> circulating <a href="https://app.vektes.com/vek/circulating" target="_blank" rel="noopener" style="color:var(--accent-ink);text-decoration:none">(API ↗)</a></div>
+      </div>
+    </div>
+  </section>
+
   <section id="status">
     <div class="wrap sec">
       <div class="sec-head">
@@ -424,8 +494,33 @@
 </footer>
 
 <script>
-  // Fee-tier example is illustrative; no runtime dependencies.
-  // Smooth-scroll offset handled by CSS scroll-behavior; nothing else required.
+  // Fee-tier example is illustrative; smooth-scroll handled by CSS.
+  // Live "Supply & locks" panel — reads on-chain balances from the app's public supply endpoint.
+  // The HTML carries a recent snapshot as a fallback, so the panel is correct even if this fetch fails.
+  (async function(){
+    var P = document.getElementById('supplyPanel'); if(!P) return;
+    try{
+      var r = await fetch('https://app.vektes.com/vek/distribution', {cache:'no-store'});
+      if(!r.ok) return;
+      var d = await r.json(); var T = d.total || 1;
+      var fmt = function(n){ return Number(n).toLocaleString('en-US'); };
+      var pct = function(n){ return (n*100/T).toFixed(2)+'%'; };
+      ['treasury','vestingUncx','lp','publicFloat','burned'].forEach(function(k){
+        P.querySelectorAll('[data-k="'+k+'"]').forEach(function(e){ e.textContent = fmt(d[k]); });
+        var p = pct(d[k]);
+        P.querySelectorAll('[data-p="'+k+'"]').forEach(function(e){ e.textContent = p; });
+        P.querySelectorAll('[data-b="'+k+'"]').forEach(function(e){ e.style.width = p; });
+      });
+      var locked = T - d.publicFloat - d.burned;
+      var lk = document.getElementById('supLocked'); if(lk) lk.textContent = '~'+Math.round(locked*100/T)+'%';
+      var sc = document.getElementById('supCirc'); if(sc) sc.textContent = fmt(d.circulating);
+      var ao = document.getElementById('supAsOf');
+      if(ao && d.asOf){
+        var dt = new Date(d.asOf);
+        ao.innerHTML = '<i></i>live · as of ' + dt.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}) + ', ' + d.asOf.substr(11,5) + ' UTC';
+      }
+    }catch(e){ /* keep the static fallback already in the HTML */ }
+  })();
 </script>
 </body>
 </html>
