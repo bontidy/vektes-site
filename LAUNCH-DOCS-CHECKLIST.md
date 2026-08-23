@@ -91,8 +91,11 @@ but **no future period will ever accrue.**
 
 ## Cancel
 
-`cancelAllowance(recipient, txCode)` — **sender-only.** Ends the order early (brings the end forward to now):
-periods already unlocked stay claimable, no new period accrues.
+`cancelAllowance(recipient, txCode)` — **sender-only, hard stop.** It terminates the order and **forfeits every
+unclaimed period** (arrears included): after cancel, `claimAllowance` reverts and the recipient can claim
+nothing more. The payment is treated as an advance for services still to be rendered, so the recipient's only
+protection is to **claim promptly** — anything unclaimed at cancel is lost. (This differs from a *funding
+shortfall*, which freezes future accrual but keeps already-unlocked arrears claimable.)
 
 ## Preview
 
@@ -104,8 +107,10 @@ periods already unlocked stay claimable, no new period accrues.
 
 ## Good to know
 
-- **Not a funds guarantee.** Because funds are pulled from the sender, arrears are only collectable while the
-  sender stays funded and approved. A single missed/underfunded pull **permanently** stops future accrual.
+- **Not a funds guarantee, and unclaimed pay is revocable.** Because funds are pulled from the sender, arrears
+  are only collectable while the sender stays funded and approved. A single missed/underfunded pull
+  **permanently** stops future accrual (arrears preserved), and the sender can **cancel to forfeit everything
+  unclaimed**. Claim promptly.
 - **Fees.** While the protocol is fee-free (launch), claims cost no protocol fee. When fees are active, the
   in-kind fee is taken from the pulled amount, attributed to the funder — the recipient receives the net.
 - **ERC-20 only**, standard tokens (the same curated allowlist as transfers).
