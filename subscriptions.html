@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vektes — On-chain Subscriptions</title>
+<meta name="description" content="Recurring payments on Ethereum: card-style autopay that's non-custodial, censorship-resistant, and final. Authorise once, get charged each cycle — no processor, no chargebacks, no middleman. Coming in Vektes v2." />
+<meta name="theme-color" content="#0c8f6b" />
+<link rel="canonical" href="https://vektes.com/subscriptions" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Vektes" />
+<meta property="og:url" content="https://vektes.com/subscriptions" />
+<meta property="og:title" content="Vektes — On-chain Subscriptions" />
+<meta property="og:description" content="Stripe-style subscriptions, but on-chain: non-custodial, censorship-resistant, final. Coming in Vektes v2." />
+<meta property="og:image" content="https://vektes.com/og-image.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
+<style>
+  :root{
+    --paper:#edf1ef; --surface:#f7faf8; --raise:#ffffff;
+    --ink:#0e1c1a; --ink-2:#3c4b49; --ink-3:#6d7d7a;
+    --line:rgba(14,28,26,.13); --line-2:rgba(14,28,26,.07);
+    --accent:#0c8f6b; --accent-ink:#0a6f53; --accent-wash:rgba(12,143,107,.09);
+    --clay:#b4633a; --clay-ink:#9a4f2c; --clay-wash:rgba(180,99,58,.10);
+    --font-mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --font-sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --maxw:1120px;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --paper:#0b1413; --surface:#10201d; --raise:#132520;
+    --ink:#e9eeeb; --ink-2:#9db0ac; --ink-3:#6f827e;
+    --line:rgba(233,238,235,.14); --line-2:rgba(233,238,235,.07);
+    --accent:#24b98c; --accent-ink:#4fd3a8; --accent-wash:rgba(36,185,140,.12);
+    --clay:#ce8256; --clay-ink:#e0996e; --clay-wash:rgba(206,130,86,.14);
+  }}
+  :root[data-theme="light"]{--paper:#edf1ef;--surface:#f7faf8;--raise:#fff;--ink:#0e1c1a;--ink-2:#3c4b49;--ink-3:#6d7d7a;--line:rgba(14,28,26,.13);--line-2:rgba(14,28,26,.07);--accent:#0c8f6b;--accent-ink:#0a6f53;--accent-wash:rgba(12,143,107,.09);--clay:#b4633a;--clay-ink:#9a4f2c;--clay-wash:rgba(180,99,58,.10)}
+  :root[data-theme="dark"]{--paper:#0b1413;--surface:#10201d;--raise:#132520;--ink:#e9eeeb;--ink-2:#9db0ac;--ink-3:#6f827e;--line:rgba(233,238,235,.14);--line-2:rgba(233,238,235,.07);--accent:#24b98c;--accent-ink:#4fd3a8;--accent-wash:rgba(36,185,140,.12);--clay:#ce8256;--clay-ink:#e0996e;--clay-wash:rgba(206,130,86,.14)}
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font-sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;letter-spacing:.005em}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px}
+  a{color:inherit}
+  h1,h2,h3{font-family:var(--font-mono);font-weight:700;letter-spacing:-.02em;text-wrap:balance;margin:0}
+  .eyebrow{font-family:var(--font-mono);font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--accent-ink)}
+
+  header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line-2)}
+  .nav{display:flex;align-items:center;gap:20px;height:66px}
+  .brand{font-family:var(--font-mono);font-weight:700;letter-spacing:.24em;font-size:15px;text-decoration:none;display:flex;align-items:center;gap:10px}
+  .brand .dot{width:11px;height:11px;border-radius:3px;background:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .nav .spacer{flex:1}
+  .nav a.link{display:none;text-decoration:none;color:var(--ink-2);font-size:14px;font-family:var(--font-mono);letter-spacing:.02em}
+  .nav a.link:hover{color:var(--ink)}
+  @media(min-width:860px){.nav a.link{display:inline}}
+  .pill{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--clay-ink);border:1px solid var(--line);padding:5px 10px;border-radius:100px;display:inline-flex;gap:7px;align-items:center;white-space:nowrap}
+  .pill .live{width:7px;height:7px;border-radius:50%;background:var(--clay)}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:14px;font-weight:600;letter-spacing:.02em;text-decoration:none;padding:12px 18px;border-radius:9px;border:1px solid var(--line);color:var(--ink);background:var(--raise);transition:transform .12s,border-color .12s}
+  .btn:hover{transform:translateY(-1px);border-color:var(--ink-3)}
+  .btn.primary{background:var(--accent);color:#fff;border-color:transparent}
+  @media(prefers-color-scheme:dark){.btn.primary{color:#04120d}}
+  :root[data-theme="dark"] .btn.primary{color:#04120d}
+
+  .tag{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:100px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line)}
+  .tag .d{width:7px;height:7px;border-radius:50%}
+  .tag.v2{color:var(--clay-ink);background:var(--clay-wash);border-color:transparent}
+  .tag.v2 .d{background:var(--clay)}
+
+  /* hero */
+  .hero{padding:74px 0 44px}
+  .hero .stripe{font-family:var(--font-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 16px}
+  .hero h1{font-size:clamp(40px,7vw,72px);line-height:1.01;margin:0}
+  .hero h1 .g{color:var(--accent-ink)}
+  .hero .sub{color:var(--ink-2);font-size:clamp(18px,2.3vw,22px);max-width:58ch;margin:24px 0 0}
+  .hero .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:32px;align-items:center}
+  .hero .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:26px}
+
+  section{border-top:1px solid var(--line-2)}
+  .sec{padding:56px 0}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:14px;flex-wrap:wrap}
+  .sec-head h2{font-size:clamp(23px,3.2vw,32px)}
+  .lede{color:var(--ink-2);max-width:64ch}
+  .sec .lede.small{margin:0 0 30px;font-size:16px}
+
+  /* steps */
+  .steps{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:14px;overflow:hidden}
+  @media(min-width:720px){.steps{grid-template-columns:1fr 1fr 1fr}}
+  .step{background:var(--surface);padding:24px}
+  .step .n{font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--accent-ink);letter-spacing:.1em}
+  .step h3{font-size:17px;margin:12px 0 8px}
+  .step p{color:var(--ink-2);font-size:15px;margin:0}
+
+  /* grid / cells */
+  .grid{display:grid;grid-template-columns:1fr;gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:14px;overflow:hidden}
+  @media(min-width:680px){.grid{grid-template-columns:1fr 1fr}}
+  @media(min-width:980px){.grid{grid-template-columns:1fr 1fr 1fr}}
+  .cell{background:var(--surface);padding:24px}
+  .cell .lab{font-family:var(--font-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);display:flex;align-items:center;gap:9px}
+  .cell h3{font-size:18px;margin:12px 0 8px}
+  .cell p{color:var(--ink-2);font-size:15px;margin:0}
+
+  /* comparison table */
+  .table-wrap{overflow-x:auto;border:1px solid var(--line-2);border-radius:14px;margin-top:8px}
+  table{border-collapse:collapse;width:100%;min-width:520px;background:var(--surface)}
+  th,td{text-align:left;padding:14px 20px;border-bottom:1px solid var(--line-2);font-size:15px;vertical-align:top}
+  thead th{font-family:var(--font-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:700}
+  tbody td:first-child{color:var(--ink);font-family:var(--font-mono);font-size:13.5px}
+  tbody td{color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+
+  /* code */
+  pre{background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:20px;overflow-x:auto;margin:0}
+  code{font-family:var(--font-mono);font-size:13.5px;line-height:1.7;color:var(--ink)}
+  .cmt{color:var(--ink-3)}
+  .fn{color:var(--accent-ink)}
+
+  .feenote{color:var(--ink-2);font-size:15.5px;max-width:70ch}
+  .feenote b{color:var(--ink)}
+  .feenote+.feenote{margin-top:14px}
+
+  footer{border-top:1px solid var(--line);padding:48px 0 40px;margin-top:8px}
+  .foot{display:flex;flex-wrap:wrap;gap:24px;justify-content:space-between;align-items:flex-start}
+  .foot a{color:var(--ink-2);text-decoration:none;font-family:var(--font-mono);font-size:14px}
+  .foot a:hover{color:var(--ink)}
+  .disc{margin-top:28px;padding-top:20px;border-top:1px solid var(--line-2);color:var(--ink-3);font-size:12.5px;line-height:1.6;max-width:80ch}
+  .disc b{color:var(--ink-2)}
+</style>
+</head>
+<body id="top">
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span class="dot"></span>VEKTES</a>
+    <span class="spacer"></span>
+    <a class="link" href="/features.html">Features</a>
+    <a class="link" href="/docs/">Docs</a>
+    <a class="link" href="/#fees">Fees</a>
+    <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+    <span class="pill"><span class="live"></span>v2 · pending re-audit</span>
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="wrap hero">
+  <p class="stripe">Recurring payments · on Ethereum</p>
+  <h1>Stripe subscriptions,<br><span class="g">on-chain.</span></h1>
+  <p class="sub">Card-style autopay for crypto: your customer <b>authorises once</b>, then you <b>charge a fixed amount each period</b> — straight from their wallet. Non-custodial, censorship-resistant, and final. No processor, no chargebacks, no middleman holding the funds.</p>
+  <div class="cta">
+    <a class="btn primary" href="/features.html">See all features</a>
+    <a class="btn" href="/docs/">Read the docs</a>
+  </div>
+  <div class="legend">
+    <span class="tag v2"><span class="d"></span>Coming in v2 · built &amp; tested, pending re-audit</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">How it works</div><h2>Three moving parts</h2></div>
+  <p class="lede small">Nothing is escrowed. The money stays in the customer's wallet until each charge — exactly like a card on file.</p>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><h3>Authorise once</h3><p>The customer approves the amount and signs up for the plan — a one-time on-chain authorisation. The merchant address is fixed and can never be changed.</p></div>
+    <div class="step"><div class="n">02</div><h3>Charge each cycle</h3><p>Each period the merchant pulls the fixed amount from the customer's wallet. Charge upfront or on a set date; a future start makes a built-in <b>free trial</b>.</p></div>
+    <div class="step"><div class="n">03</div><h3>Cancel or renew anytime</h3><p>The customer cancels whenever they want; the merchant can extend the term to renew. A fixed term is required up front (no forever-authorisations).</p></div>
+  </div>
+</div></section>
+
+<!-- CARD MAPPING -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Familiar</div><h2>Everything you expect from a subscription</h2></div>
+  <p class="lede small">The card mental model maps one-to-one — without a card network in the middle.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Subscription feature</th><th>How Vektes does it</th></tr></thead>
+      <tbody>
+        <tr><td>Card on file</td><td>The customer authorises once with a standing on-chain allowance — no card, no vault.</td></tr>
+        <tr><td>Charge on a schedule</td><td>The merchant charges a fixed amount each period, pulled from the customer's wallet.</td></tr>
+        <tr><td>Free trial</td><td>Set the first charge in the future — the trial period is built in.</td></tr>
+        <tr><td>Fixed term &amp; renewal</td><td>Every plan has a required end date; the merchant can extend it to renew.</td></tr>
+        <tr><td>Declined payment → retry</td><td>If a wallet is short one cycle, the charge is <b>resumable</b> — it collects what it can and retries next time.</td></tr>
+        <tr><td>No runaway back-charges</td><td>A grace cap means a long-dormant plan can never be drained for months of arrears at once.</td></tr>
+        <tr><td>Cancel anytime</td><td>The customer cancels on-chain; unclaimed cycles are forfeited — no surprise final bill.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div></section>
+
+<!-- WHY ON-CHAIN -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Why on-chain</div><h2>What a processor can't give you</h2></div>
+  <div class="grid">
+    <div class="cell"><div class="lab">Non-custodial</div><h3>Funds never leave the wallet early</h3><p>No processor or escrow holds the money. Each charge moves value directly from customer to merchant, at charge time.</p></div>
+    <div class="cell"><div class="lab">Final</div><h3>No chargebacks, no clawbacks</h3><p>Settlement is final. A collected charge can't be reversed by a third party — predictable revenue, no dispute roulette.</p></div>
+    <div class="cell"><div class="lab">Open</div><h3>Censorship-resistant</h3><p>No account to freeze, no gatekeeper to de-platform you. It's a public smart contract anyone can integrate.</p></div>
+    <div class="cell"><div class="lab">Global</div><h3>Anyone with a wallet</h3><p>No merchant onboarding, no card-network geography, no chargeback reserves. Stablecoins in, settled on Ethereum.</p></div>
+    <div class="cell"><div class="lab">Transparent</div><h3>Every charge on-chain</h3><p>Auditable billing by construction — plans, charges, cancellations are all verifiable events, not a black-box dashboard.</p></div>
+    <div class="cell"><div class="lab">Composable</div><h3>A primitive, not a silo</h3><p>Any app can create plans and charge them. Build your own billing UX on top; the settlement layer is shared and neutral.</p></div>
+  </div>
+</div></section>
+
+<!-- HONEST -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">Straight talk</div><h2>What it is — and isn't</h2></div>
+  <p class="feenote"><b>It's a direct debit, not a credit card.</b> Funds must exist in the customer's wallet at charge time — there's no credit line and no chargeback path. That's the trade for finality and self-custody.</p>
+  <p class="feenote"><b>Fixed price, stablecoins, one merchant.</b> Today it's a fixed amount per period in a curated ERC-20 (or ETH), to a named recipient. Usage-based / variable billing is a future extension.</p>
+  <p class="feenote"><b>The merchant charges; the customer stays in control.</b> The customer authorises up front, can cancel anytime, and older uncollected cycles lapse automatically — so a plan can never quietly accumulate a giant bill.</p>
+</div></section>
+
+<!-- FOR DEVELOPERS -->
+<section><div class="wrap sec">
+  <div class="sec-head"><div class="eyebrow">For developers</div><h2>Four functions</h2></div>
+  <p class="lede small">A plain smart-contract interface — no SDK required. Create a plan, charge it each cycle, extend or cancel.</p>
+  <pre><code><span class="cmt">// customer authorises a plan (fixed amount per period, required end date)</span>
+<span class="fn">createAllowance</span>(token, merchant, amountPerPeriod, periodLength, startTime, endTime, maxArrears, planCode)
+
+<span class="cmt">// merchant charges the cycles due (resumable, capped by maxArrears)</span>
+<span class="fn">claimAllowance</span>(customer, merchant, planCode)
+
+<span class="cmt">// merchant renews by pushing the end date out</span>
+<span class="fn">extendAllowance</span>(merchant, planCode, newEndTime)
+
+<span class="cmt">// customer (or merchant) cancels — no further charges</span>
+<span class="fn">cancelAllowance</span>(merchant, planCode)</code></pre>
+  <div class="cta" style="display:flex;gap:12px;margin-top:22px;flex-wrap:wrap">
+    <a class="btn primary" href="/docs/">Documentation</a>
+    <a class="btn" href="https://github.com/bontidy/vektes-contracts" target="_blank" rel="noopener">Source ↗</a>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="foot">
+    <a class="brand" href="/" style="display:flex;align-items:center;gap:10px"><span class="dot" style="width:11px;height:11px;border-radius:3px;background:var(--accent);box-shadow:0 0 0 3px var(--accent-wash);display:inline-block"></span>VEKTES</a>
+    <div style="display:flex;flex-wrap:wrap;gap:20px">
+      <a href="/features.html">Features</a>
+      <a href="/docs/">Docs</a>
+      <a href="/terms">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/risks">Risks</a>
+      <a href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
+    </div>
+  </div>
+  <div class="disc"><b>Disclaimer.</b> On-chain subscriptions are a <b>v2 feature in development, pending audit</b> — details may change and nothing here is a commitment to ship on any date. Vektes is experimental protocol software provided “as is”, without warranties, and nothing here is financial, legal, or tax advice. It is a debit-style primitive: charges pull from the customer's existing balance, settlement is final, and there is no chargeback or refund mechanism at the protocol layer.</div>
+</div></footer>
+
+</body>
+</html>
