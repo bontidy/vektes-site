@@ -58,7 +58,9 @@
   .muted{color:var(--ink-3)}
   #app{display:none}
   .plan{border:1px solid var(--line-2);border-radius:11px;padding:14px;margin-top:12px;background:var(--raise)}
-  .plan .t{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);word-break:break-all}
+  .plan .t{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);word-break:break-all;cursor:pointer;user-select:none}
+  .plan .t:hover{color:var(--ink)}
+  .chev{display:inline-block;width:16px;color:var(--ink-3)}
   .rolegrp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
   .rolelab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);min-width:76px}
   #logPanel{margin-top:22px}
@@ -278,10 +280,12 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   const getPlans=()=>JSON.parse(localStorage.getItem("vk_plans")||"[]");
   const setPlans=p=>localStorage.setItem("vk_plans",JSON.stringify(p));
   function markCancelled(txCode){ const ps=getPlans(); const q=ps.find(x=>x.txCode===txCode); if(q){ q.cancelled=true; setPlans(ps); } }
+  const expanded=new Set();
   function renderPlans(){
     const box=$("plans"); const ps=getPlans().filter(p=>p.sender.toLowerCase()===(me||"").toLowerCase());
     if(!ps.length){ box.innerHTML='<p class="muted" style="margin-top:12px">No plans yet — create one above.</p>'; return; }
-    box.innerHTML=ps.map((p,i)=>{ const d=p.cancelled?" disabled":""; return `<div class="plan"${p.cancelled?' style="opacity:.55"':""}><div class="t">→ ${short(p.recipient)} · ${p.amount} tUSDC / ${p.period}s · <span class="muted">${p.txCode.slice(0,10)}…</span>${p.cancelled?' · <span class="muted">cancelled</span>':""}</div>
+    box.innerHTML=ps.map((p,i)=>{ const d=p.cancelled?" disabled":""; const open=expanded.has(p.txCode); return `<div class="plan"${p.cancelled?' style="opacity:.55"':""}><div class="t" data-toggle="${p.txCode}"><span class="chev">${open?"▾":"▸"}</span>→ ${short(p.recipient)} · ${p.amount} tUSDC / ${p.period}s · <span class="muted">${p.txCode.slice(0,10)}…</span>${p.cancelled?' · <span class="muted">cancelled</span>':""}</div>
+      <div class="planacts" style="display:${open?"block":"none"}">
       <div class="rolegrp"><span class="rolelab" title="recipient-only">Merchant</span>
         <button class="btn sm" data-act="preview" data-i="${i}">Preview due</button>
         <button class="btn sm primary" data-act="charge" data-i="${i}"${d}>Charge</button>
@@ -289,7 +293,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
       <div class="rolegrp"><span class="rolelab" title="sender-only">Customer</span>
         <button class="btn sm" data-act="extend" data-i="${i}"${d}>Extend +1yr</button>
         <button class="btn sm ghost" data-act="cancel" data-i="${i}"${d}>Cancel</button>
-      </div></div>`; }).join("");
+      </div></div></div>`; }).join("");
   }
   function myPlans(){ return getPlans().filter(p=>p.sender.toLowerCase()===me.toLowerCase()); }
 
@@ -300,7 +304,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     const txCode=ethers.hexlify(ethers.randomBytes(32));
     const t=await proto.createAllowance(TUSDC,recipient,U(amtStr),BigInt($("subPeriod").value||"300"),0n,endTime,BigInt($("subArrears").value||"3"),txCode);
     log("Creating plan… "+tx(t.hash)); await t.wait(); log("Plan created ✓","ok");
-    const ps=getPlans(); ps.push({sender:me,recipient,txCode,amount:amtStr,period:($("subPeriod").value||"300")}); setPlans(ps); renderPlans();
+    const ps=getPlans(); ps.push({sender:me,recipient,txCode,amount:amtStr,period:($("subPeriod").value||"300")}); setPlans(ps); expanded.add(txCode); renderPlans();
   }
   async function planAct(act,i){
     const p=myPlans()[i]; if(!p)return;
@@ -341,7 +345,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   $("refresh").onclick=()=>run("Refresh",refresh);
   $("switchNet").onclick=()=>run("Switch network",switchToSepolia);
   $("createPlan").onclick=()=>sendTx("Create plan",createPlan);
-  $("plans").onclick=e=>{ const b=e.target.closest("button[data-act]"); if(b) run("Plan action",()=>planAct(b.dataset.act,+b.dataset.i)); };
+  $("plans").onclick=e=>{ const b=e.target.closest("button[data-act]"); if(b){ run("Plan action",()=>planAct(b.dataset.act,+b.dataset.i)); return; } const tog=e.target.closest("[data-toggle]"); if(tog){ const c=tog.dataset.toggle; expanded.has(c)?expanded.delete(c):expanded.add(c); renderPlans(); } };
   $("createLink").onclick=()=>sendTx("Create link",createLink);
   $("redeemLink").onclick=()=>sendTx("Redeem",redeemLink);
   $("copyLink").onclick=()=>{ $("linkOut").select(); document.execCommand("copy"); log("Link copied","ok"); };
