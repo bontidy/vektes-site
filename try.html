@@ -91,11 +91,13 @@
       <h2>Your wallet</h2>
       <p class="hint">Connected as <span id="addr" class="mono"></span> · <a id="scanAddr" target="_blank" rel="noopener">view on Etherscan ↗</a></p>
       <div class="stats" style="margin-bottom:16px">
+        <span>Network: <b id="net">–</b></span>
         <span>ETH: <b id="ethBal">–</b></span>
         <span>tUSDC: <b id="usdcBal">–</b></span>
         <span>Protocol allowance: <b id="approved">–</b></span>
       </div>
       <div class="row">
+        <button id="switchNet" class="btn" style="display:none;border-color:var(--red);color:var(--red)">Switch to Sepolia</button>
         <button id="faucet" class="btn">Mint 1,000 tUSDC</button>
         <button id="approve" class="btn">Approve protocol</button>
         <button id="refresh" class="btn ghost">Refresh</button>
@@ -191,32 +193,39 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   const tx=h=>`<a href="${SCAN}/tx/${h}" target="_blank" rel="noopener">${h.slice(0,10)}…</a>`;
   async function run(label,fn){ try{ await fn(); }catch(e){ const m=(e&&(e.info?.error?.message||e.shortMessage||e.reason||e.message))||String(e); log(label+" failed: "+m,"err"); } }
 
-  async function ensureSepolia(){
-    const net=await provider.getNetwork();
-    if(net.chainId!==CHAIN_ID){
-      try{ await eth.request({method:"wallet_switchEthereumChain",params:[{chainId:SEPOLIA_HEX}]}); }
-      catch(e){ if(e.code===4902){ await eth.request({method:"wallet_addEthereumChain",params:[{chainId:SEPOLIA_HEX,chainName:"Sepolia",nativeCurrency:{name:"Sepolia ETH",symbol:"ETH",decimals:18},rpcUrls:["https://ethereum-sepolia-rpc.publicnode.com"],blockExplorerUrls:[SCAN]}]}); } else throw e; }
-      provider=new ethers.BrowserProvider(eth);
-    }
+  async function switchToSepolia(){
+    try{ await eth.request({method:"wallet_switchEthereumChain",params:[{chainId:SEPOLIA_HEX}]}); }
+    catch(e){ if(e.code===4902){ await eth.request({method:"wallet_addEthereumChain",params:[{chainId:SEPOLIA_HEX,chainName:"Sepolia",nativeCurrency:{name:"Sepolia ETH",symbol:"ETH",decimals:18},rpcUrls:["https://ethereum-sepolia-rpc.publicnode.com"],blockExplorerUrls:[SCAN]}]}); } else throw e; }
+  }
+  async function syncNetwork(){
+    const net=await provider.getNetwork(); const ok=net.chainId===CHAIN_ID;
+    $("net").textContent = ok ? "Sepolia ✓" : "wrong network";
+    $("net").style.color = ok ? "" : "var(--red)";
+    $("switchNet").style.display = ok ? "none" : "inline-block";
+    if(ok){ await refresh(); } else { log("You're on the wrong network — click <b>Switch to Sepolia</b>.","err"); }
+  }
+  async function reinit(){
+    provider=new ethers.BrowserProvider(eth);
+    signer=await provider.getSigner(); me=await signer.getAddress();
+    proto=new ethers.Contract(PROTOCOL,PROTO_ABI,signer);
+    usdc=new ethers.Contract(TUSDC,ERC20_ABI,signer);
+    $("addr").textContent=short(me); $("scanAddr").href=`${SCAN}/address/${me}`;
+    $("connect").textContent="Connected · "+short(me);
+    $("app").style.display="block";                       // reveal the app immediately, whatever the network
+    if(!$("subRecipient").value) $("subRecipient").value=me;
+    if(location.hash.startsWith("#claim=")) $("linkIn").value=location.href;
+    await syncNetwork();
   }
   async function connect(){
     eth=await waitForProvider();
     if(!eth){ alert("No Ethereum wallet detected. If MetaMask is installed, unlock it and reload this page (some browsers inject the wallet a moment after load)."); return; }
-    if(eth.on){ eth.on("accountsChanged",()=>location.reload()); eth.on("chainChanged",()=>location.reload()); }
+    if(eth.on){ if(eth.removeAllListeners)eth.removeAllListeners(); eth.on("accountsChanged",()=>location.reload()); eth.on("chainChanged",()=>run("Network change",reinit)); }
     provider=new ethers.BrowserProvider(eth);
     await provider.send("eth_requestAccounts",[]);
-    await ensureSepolia();
-    signer=await provider.getSigner(); me=await signer.getAddress();
-    proto=new ethers.Contract(PROTOCOL,PROTO_ABI,signer);
-    usdc=new ethers.Contract(TUSDC,ERC20_ABI,signer);
-    $("addr").textContent=short(me);
-    $("scanAddr").href=`${SCAN}/address/${me}`;
-    $("connect").textContent="Connected · "+short(me);
-    $("app").style.display="block";
-    if(!$("subRecipient").value) $("subRecipient").value=me;
+    await reinit();
     log("Connected as "+me,"ok");
-    await refresh();
-    if(location.hash.startsWith("#claim=")) $("linkIn").value=location.href;
+    const net=await provider.getNetwork();
+    if(net.chainId!==CHAIN_ID){ log("Switching to Sepolia — approve the prompt in your wallet…"); try{ await switchToSepolia(); }catch(_){ log("Approve the network switch, or use the <b>Switch to Sepolia</b> button.","err"); } }
   }
   async function refresh(){
     if(!me)return;
@@ -287,6 +296,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   $("faucet").onclick=()=>run("Mint",async()=>{ const t=await usdc.mint(me,U(1000)); log("Minting 1,000 tUSDC… "+tx(t.hash)); await t.wait(); log("Minted ✓","ok"); refresh(); });
   $("approve").onclick=()=>run("Approve",async()=>{ const t=await usdc.approve(PROTOCOL,ethers.MaxUint256); log("Approving… "+tx(t.hash)); await t.wait(); log("Approved ✓","ok"); refresh(); });
   $("refresh").onclick=()=>run("Refresh",refresh);
+  $("switchNet").onclick=()=>run("Switch network",switchToSepolia);
   $("createPlan").onclick=()=>run("Create plan",createPlan);
   $("plans").onclick=e=>{ const b=e.target.closest("button[data-act]"); if(b) run("Plan action",()=>planAct(b.dataset.act,+b.dataset.i)); };
   $("createLink").onclick=()=>run("Create link",createLink);
