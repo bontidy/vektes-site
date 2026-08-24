@@ -170,7 +170,22 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   const $=id=>document.getElementById(id);
   const short=a=>a?a.slice(0,6)+"…"+a.slice(-4):"";
   const U=(n,d=6)=>ethers.parseUnits(String(n),d);
-  let provider,signer,me,proto,usdc;
+  let provider,signer,me,proto,usdc,eth=null;
+
+  // Wallet discovery: prefer EIP-6963 (modern MetaMask announces itself), fall back to window.ethereum,
+  // and poll briefly in case the wallet injects late.
+  const eip6963=[];
+  window.addEventListener("eip6963:announceProvider",e=>{ if(!eip6963.some(p=>p.info.uuid===e.detail.info.uuid)) eip6963.push(e.detail); });
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  function pickProvider(){
+    if(eip6963.length){ const mm=eip6963.find(p=>/metamask/i.test((p.info.rdns||"")+(p.info.name||""))); return (mm||eip6963[0]).provider; }
+    return window.ethereum||null;
+  }
+  async function waitForProvider(ms=2500){
+    const t0=Date.now();
+    while(Date.now()-t0<ms){ const p=pickProvider(); if(p)return p; window.dispatchEvent(new Event("eip6963:requestProvider")); await new Promise(r=>setTimeout(r,150)); }
+    return pickProvider();
+  }
 
   function log(msg,cls){ const l=$("log"); if(l.querySelector(".muted"))l.innerHTML=""; const d=document.createElement("div"); d.className=cls||""; d.innerHTML=msg; l.appendChild(d); l.scrollTop=l.scrollHeight; }
   const tx=h=>`<a href="${SCAN}/tx/${h}" target="_blank" rel="noopener">${h.slice(0,10)}…</a>`;
@@ -179,14 +194,16 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   async function ensureSepolia(){
     const net=await provider.getNetwork();
     if(net.chainId!==CHAIN_ID){
-      try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:SEPOLIA_HEX}]}); }
-      catch(e){ if(e.code===4902){ await window.ethereum.request({method:"wallet_addEthereumChain",params:[{chainId:SEPOLIA_HEX,chainName:"Sepolia",nativeCurrency:{name:"Sepolia ETH",symbol:"ETH",decimals:18},rpcUrls:["https://ethereum-sepolia-rpc.publicnode.com"],blockExplorerUrls:[SCAN]}]}); } else throw e; }
-      provider=new ethers.BrowserProvider(window.ethereum);
+      try{ await eth.request({method:"wallet_switchEthereumChain",params:[{chainId:SEPOLIA_HEX}]}); }
+      catch(e){ if(e.code===4902){ await eth.request({method:"wallet_addEthereumChain",params:[{chainId:SEPOLIA_HEX,chainName:"Sepolia",nativeCurrency:{name:"Sepolia ETH",symbol:"ETH",decimals:18},rpcUrls:["https://ethereum-sepolia-rpc.publicnode.com"],blockExplorerUrls:[SCAN]}]}); } else throw e; }
+      provider=new ethers.BrowserProvider(eth);
     }
   }
   async function connect(){
-    if(!window.ethereum){ alert("No Ethereum wallet found. Install MetaMask (or similar) and reload."); return; }
-    provider=new ethers.BrowserProvider(window.ethereum);
+    eth=await waitForProvider();
+    if(!eth){ alert("No Ethereum wallet detected. If MetaMask is installed, unlock it and reload this page (some browsers inject the wallet a moment after load)."); return; }
+    if(eth.on){ eth.on("accountsChanged",()=>location.reload()); eth.on("chainChanged",()=>location.reload()); }
+    provider=new ethers.BrowserProvider(eth);
     await provider.send("eth_requestAccounts",[]);
     await ensureSepolia();
     signer=await provider.getSigner(); me=await signer.getAddress();
@@ -275,7 +292,6 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
   $("createLink").onclick=()=>run("Create link",createLink);
   $("redeemLink").onclick=()=>run("Redeem",redeemLink);
   $("copyLink").onclick=()=>{ $("linkOut").select(); document.execCommand("copy"); log("Link copied","ok"); };
-  if(window.ethereum&&window.ethereum.on){ window.ethereum.on("accountsChanged",()=>location.reload()); window.ethereum.on("chainChanged",()=>location.reload()); }
 })();
 </script>
 </body>
