@@ -59,7 +59,8 @@
   #app{display:none}
   .plan{border:1px solid var(--line-2);border-radius:11px;padding:14px;margin-top:12px;background:var(--raise)}
   .plan .t{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);word-break:break-all}
-  .plan .acts{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px}
+  .rolegrp{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+  .rolelab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);min-width:76px}
   #logPanel{margin-top:22px}
   #logHead{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px}
   #log{font-family:var(--mono);font-size:12.5px;line-height:1.7;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:14px 16px;max-height:240px;overflow:auto}
@@ -116,7 +117,7 @@
     <!-- SUBSCRIPTIONS -->
     <div class="card">
       <h2>Subscriptions (§12)</h2>
-      <p class="hint">Create a recurring plan, then charge it each cycle. Tip: keep the merchant as your own address so you can play both sides from one wallet.</p>
+      <p class="hint">Create a recurring plan, then charge it each cycle. Actions are grouped by role — the <b>merchant</b> (recipient) charges; the <b>customer</b> (sender) extends or cancels. Tip: keep the merchant as your own address to play both sides from one wallet.</p>
       <div class="grid2">
         <div class="field"><label>Merchant (recipient)</label><input id="subRecipient" placeholder="0x…" /></div>
         <div class="field"><label>Amount per cycle (tUSDC)</label><input id="subAmount" value="10" /></div>
@@ -277,9 +278,11 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     const box=$("plans"); const ps=getPlans().filter(p=>p.sender.toLowerCase()===(me||"").toLowerCase());
     if(!ps.length){ box.innerHTML='<p class="muted" style="margin-top:12px">No plans yet — create one above.</p>'; return; }
     box.innerHTML=ps.map((p,i)=>`<div class="plan"><div class="t">→ ${short(p.recipient)} · ${p.amount} tUSDC / ${p.period}s · <span class="muted">${p.txCode.slice(0,10)}…</span></div>
-      <div class="acts">
+      <div class="rolegrp"><span class="rolelab" title="recipient-only">Merchant</span>
         <button class="btn sm" data-act="preview" data-i="${i}">Preview due</button>
         <button class="btn sm primary" data-act="charge" data-i="${i}">Charge</button>
+      </div>
+      <div class="rolegrp"><span class="rolelab" title="sender-only">Customer</span>
         <button class="btn sm" data-act="extend" data-i="${i}">Extend +1yr</button>
         <button class="btn sm ghost" data-act="cancel" data-i="${i}">Cancel</button>
       </div></div>`).join("");
