@@ -194,7 +194,8 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     "function extendAllowance(address recipient,bytes32 txCode,uint256 newEndTime)",
     "function previewAllowanceClaim(address sender,address recipient,bytes32 txCode) view returns (uint256 periodsDue,uint256 grossAmount)",
     "function createClaimable(address token,uint256 amount,bytes32 txCode,address claimAddr,uint256 expiry)",
-    "function claimTo(address sender,address claimAddr,bytes32 txCode,address payoutTo,bytes signature)"
+    "function claimTo(address sender,address claimAddr,bytes32 txCode,address payoutTo,bytes signature)",
+    "error AllowanceNotFound(bytes32)","error NothingDue(bytes32)","error FunderUnfunded(bytes32)","error AllowanceEnded(bytes32)","error NotRecipient(address,address)","error InvalidExpiry()","error InvalidMaxArrears()","error InvalidPeriod()","error ZeroAmount()","error ZeroAddress()","error DuplicateTransactionCode(bytes32,address)","error TokenNotSupported(address)","error ClaimableNotFound(bytes32)","error AlreadyClaimed(bytes32)","error AlreadyReclaimed(bytes32)","error InvalidSignature()","error ExpiryNotReached(uint256,uint256)"
   ];
   const ERC20_ABI=[
     "function mint(address to,uint256 amount)",
@@ -224,7 +225,9 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
 
   function log(msg,cls){ const l=$("log"); if(l.querySelector(".muted"))l.innerHTML=""; const d=document.createElement("div"); d.className=cls||""; d.innerHTML=msg; l.appendChild(d); l.scrollTop=l.scrollHeight; }
   const tx=h=>`<a href="${SCAN}/tx/${h}" target="_blank" rel="noopener">${h.slice(0,10)}…</a>`;
-  async function run(label,fn){ try{ await fn(); }catch(e){ const m=(e&&(e.info?.error?.message||e.shortMessage||e.reason||e.message))||String(e); log(label+" failed: "+m,"err"); } }
+  const ERRMAP={ AllowanceEnded:"this plan is cancelled/ended — no further actions", NothingDue:"nothing due yet — wait for the next cycle (use Preview due)", FunderUnfunded:"the customer's wallet can't cover a cycle right now (fund it, then retry)", AllowanceNotFound:"plan not found (cancelled, or created on another network/browser)", NotRecipient:"only the merchant (recipient) can charge this plan", DuplicateTransactionCode:"that plan code is already used — create a fresh plan", InvalidExpiry:"the end date must be after the start", AlreadyClaimed:"this link was already claimed", AlreadyReclaimed:"this link was already reclaimed", InvalidSignature:"invalid claim signature", ExpiryNotReached:"the claim link hasn't expired yet" };
+  function friendlyErr(e){ const n=e&&e.revert&&e.revert.name; if(n) return ERRMAP[n]||n; return (e&&(e.shortMessage||e.reason||(e.info&&e.info.error&&e.info.error.message)||e.message))||String(e); }
+  async function run(label,fn){ try{ await fn(); }catch(e){ log(label+" failed: "+friendlyErr(e),"err"); } }
   function showGas(){ $("gasAddr").value=me||""; $("gasModal").style.display="flex"; }
   async function ensureGas(){ try{ if((await provider.getBalance(me))===0n){ showGas(); log("No Sepolia ETH for gas — fund your address, then Refresh.","err"); return false; } }catch(_){} return true; }
   function sendTx(label,fn){ return run(label, async()=>{ if(!(await ensureGas())) return; await fn(); }); }
@@ -274,18 +277,19 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
 
   const getPlans=()=>JSON.parse(localStorage.getItem("vk_plans")||"[]");
   const setPlans=p=>localStorage.setItem("vk_plans",JSON.stringify(p));
+  function markCancelled(txCode){ const ps=getPlans(); const q=ps.find(x=>x.txCode===txCode); if(q){ q.cancelled=true; setPlans(ps); } }
   function renderPlans(){
     const box=$("plans"); const ps=getPlans().filter(p=>p.sender.toLowerCase()===(me||"").toLowerCase());
     if(!ps.length){ box.innerHTML='<p class="muted" style="margin-top:12px">No plans yet — create one above.</p>'; return; }
-    box.innerHTML=ps.map((p,i)=>`<div class="plan"><div class="t">→ ${short(p.recipient)} · ${p.amount} tUSDC / ${p.period}s · <span class="muted">${p.txCode.slice(0,10)}…</span></div>
+    box.innerHTML=ps.map((p,i)=>{ const d=p.cancelled?" disabled":""; return `<div class="plan"${p.cancelled?' style="opacity:.55"':""}><div class="t">→ ${short(p.recipient)} · ${p.amount} tUSDC / ${p.period}s · <span class="muted">${p.txCode.slice(0,10)}…</span>${p.cancelled?' · <span class="muted">cancelled</span>':""}</div>
       <div class="rolegrp"><span class="rolelab" title="recipient-only">Merchant</span>
         <button class="btn sm" data-act="preview" data-i="${i}">Preview due</button>
-        <button class="btn sm primary" data-act="charge" data-i="${i}">Charge</button>
+        <button class="btn sm primary" data-act="charge" data-i="${i}"${d}>Charge</button>
       </div>
       <div class="rolegrp"><span class="rolelab" title="sender-only">Customer</span>
-        <button class="btn sm" data-act="extend" data-i="${i}">Extend +1yr</button>
-        <button class="btn sm ghost" data-act="cancel" data-i="${i}">Cancel</button>
-      </div></div>`).join("");
+        <button class="btn sm" data-act="extend" data-i="${i}"${d}>Extend +1yr</button>
+        <button class="btn sm ghost" data-act="cancel" data-i="${i}"${d}>Cancel</button>
+      </div></div>`; }).join("");
   }
   function myPlans(){ return getPlans().filter(p=>p.sender.toLowerCase()===me.toLowerCase()); }
 
@@ -304,7 +308,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     if(act==="preview"){ const [due,gross]=await proto.previewAllowanceClaim(p.sender,p.recipient,p.txCode); return log(`Plan due: <b>${due}</b> cycle(s) = <b>${ethers.formatUnits(gross,6)}</b> tUSDC`); }
     if(act==="charge"){ if(p.recipient.toLowerCase()!==me.toLowerCase()) log("Note: only the merchant address can charge — connect that wallet.","err"); const t=await proto.claimAllowance(p.sender,p.recipient,p.txCode); log("Charging… "+tx(t.hash)); await t.wait(); log("Charged ✓","ok"); return refresh(); }
     if(act==="extend"){ const t=await proto.extendAllowance(p.recipient,p.txCode,BigInt(Math.floor(Date.now()/1000)+2*365*24*3600)); log("Extending… "+tx(t.hash)); await t.wait(); return log("Extended ✓","ok"); }
-    if(act==="cancel"){ const t=await proto.cancelAllowance(p.recipient,p.txCode); log("Cancelling… "+tx(t.hash)); await t.wait(); return log("Cancelled ✓","ok"); }
+    if(act==="cancel"){ const t=await proto.cancelAllowance(p.recipient,p.txCode); log("Cancelling… "+tx(t.hash)); await t.wait(); markCancelled(p.txCode); log("Cancelled ✓","ok"); return renderPlans(); }
   }
 
   async function createLink(){
