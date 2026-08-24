@@ -25,8 +25,8 @@ the v2 model. Per-page deltas:
 - **protocol-reference.md** — full v2 surface: `release`/`releaseMany`, `reject` (strictly-before-date),
   `sendWithPermit`, `shortenSettlementDate`, `feeExempt`, `withdrawFees`/`accruedFees`, claim-by-link
   (`createClaimable`/`claimTo`/`reclaim`), campaigns (`createCampaign`/`topUpCampaign`/`claimCampaign`/
-  `reclaimCampaign`), **§12 allowances** (`createAllowance`/`claimAllowance`/`cancelAllowance`). New events
-  (`TransferReleased`, `AllowanceCreated/Claimed/Cancelled/Frozen`, …) and errors.
+  `reclaimCampaign`), **§12 allowances** (`createAllowance`/`claimAllowance`/`cancelAllowance`/`extendAllowance`).
+  New events (`TransferReleased`, `AllowanceCreated/Claimed/Cancelled/Extended`, …) and errors.
 - **fee-model.md** — switch the primary model to **in-kind fee** (asset being sent, not $VEK) + off-chain
   buy-and-burn; the `feenote` in features.html already states this correctly and can be mirrored.
 - **integration-guide.md** — watch `TransferReleased` (not `TransferClaimed`); keeper `releaseMany`; permit flow.
@@ -50,70 +50,75 @@ the v2 model. Per-page deltas:
 ## READY-TO-PASTE: `docs-src/recurring-allowance.md` (§12)
 
 ```markdown
-# Recurring Allowance (Standing Order)
+# Recurring Allowance — Crypto Autopay (Card / Direct-Debit)
 
-A **recurring allowance** is a fixed, per-period payment to a **named recipient** who **pulls** it each
-period — like a salary, stipend, or subscription. It is a **pull-from-sender standing order**: no funds are
-locked up front. Each period the recipient withdraws `amountPerPeriod` directly from the sender's wallet via
-the sender's standing ERC-20 approval to the protocol. Collection is therefore **best-effort** — it succeeds
-only while the sender keeps enough balance and approval, exactly like a bank standing order / direct debit.
-**ERC-20 only** (native ETH has no `transferFrom`).
+A **recurring allowance** is a fixed, per-period charge to a **named recipient** — a crypto **card-on-file /
+direct-debit** subscription. The customer (sender) authorises once; the merchant (recipient) **charges each
+period** by pulling `amountPerPeriod` from the sender's wallet via a standing ERC-20 approval — no funds are
+locked up front. Collection is **best-effort and resumable**: it succeeds while the sender keeps enough balance
++ approval, and a declined cycle simply retries next time. It is **debit, not credit** (funds must exist; no
+chargebacks) and **ERC-20 only** (native ETH has no `transferFrom`).
+
+Card-style features fall out of the parameters: **charge upfront or scheduled**, **free trial** (a future
+start), **fixed term + renew**, **cancel anytime**.
 
 ---
 
 ## Create
 
-`createAllowance(token, recipient, amountPerPeriod, periodLength, startTime, endTime, txCode)`
+`createAllowance(token, recipient, amountPerPeriod, periodLength, startTime, endTime, maxArrears, txCode)`
 
 - **Sender-only** — the caller becomes the funder. The **recipient is fixed here and can never be changed.**
 - Records the schedule; **locks no funds.** The sender must separately `approve()` the protocol for `token`.
-- `startTime` — when the **first** period unlocks. `0` = now (**immediate first pull**); a future timestamp
-  delays the first pull to that date; a past timestamp makes several periods claimable at once. Each later
-  period unlocks one `periodLength` after.
-- `endTime` — optional. `0` = **open-ended** (pulls until the sender cancels). If set (must be after
-  `startTime`), accrual stops there: the recipient can never pull a period past `endTime` (periods unlocked
-  before it stay claimable).
+- `startTime` — when the **first** charge unlocks. `0` = now (**charge immediately**); a future time schedules
+  it (a future start = a **free trial**); each later period unlocks one `periodLength` after.
+- `endTime` — **required** hard end date (must be after `startTime`; the app defaults it to ~1 year). No period
+  accrues past it. The sender can **extend** it later to renew.
+- `maxArrears` — grace window (**must be ≥ 1**): the max unclaimed periods ever claimable at once. Older
+  uncollected cycles **lapse**, so a long-dormant order can never be drained in bulk on a later windfall.
+  1 = strict use-it-or-lose-it; 3 = up to three recent missed cycles recoverable.
 - `txCode` — unique per (sender, recipient), so one sender can run several allowances to the same payee.
 
-## Claim
+## Charge (claim)
 
 `claimAllowance(sender, recipient, txCode)` — **recipient-only.**
 
-Pulls every whole period accrued since the last claim (arrears included) in one call. A period can never be
-claimed twice. **Best-effort:** it pays as many whole periods as the sender can currently cover; if the
-sender can't cover every owed period, the pull is *short* — it pays what it can and then **freezes** the
-standing order (a missed payment ends the forward commitment): the already-unlocked arrears remain claimable,
-but **no future period will ever accrue.**
+Collects every whole period claimable since the last charge (recent arrears included, up to `maxArrears`) in
+one call; a period can never be charged twice. **Best-effort & resumable:** it collects as many whole periods
+as the sender can currently cover; if the sender is short, it takes what it can and **retries next cycle** —
+billing keeps running (no freeze). Reverts `NothingDue` if nothing new is claimable, or `FunderUnfunded` (no
+state change) if not even one period is affordable right now — retry later.
 
-- Reverts `NothingDue` if no new whole period has accrued.
-- A fully-unfunded claim freezes and returns without paying; a *later* still-unfunded claim reverts
-  `FunderUnfunded`.
+## Extend (renew)
+
+`extendAllowance(recipient, txCode, newEndTime)` — **sender-only.** Pushes the end date out (must be strictly
+later; blocked after cancel). Extending a lapsed order resumes it, with the gap still bounded by `maxArrears`.
 
 ## Cancel
 
 `cancelAllowance(recipient, txCode)` — **sender-only, hard stop.** It terminates the order and **forfeits every
-unclaimed period** (arrears included): after cancel, `claimAllowance` reverts and the recipient can claim
-nothing more. The payment is treated as an advance for services still to be rendered, so the recipient's only
-protection is to **claim promptly** — anything unclaimed at cancel is lost. (This differs from a *funding
-shortfall*, which freezes future accrual but keeps already-unlocked arrears claimable.)
+unclaimed period** (arrears included): after cancel, `claimAllowance` reverts. The payment is treated as an
+advance for services still to be rendered, so the recipient's protection is to **charge promptly**. (Reaching
+the natural end date, by contrast, preserves the last `maxArrears` earned cycles.)
 
 ## Preview
 
-- `previewAllowanceClaim(sender, recipient, txCode)` → `(periodsDue, grossAmount)` — the *entitlement*
-  (does not check whether the sender currently has the funds/approval).
+- `previewAllowanceClaim(sender, recipient, txCode)` → `(periodsDue, grossAmount)` — the currently claimable
+  amount (does not check whether the sender has the funds/approval to cover it).
 - `getAllowance(sender, recipient, txCode)` → the full schedule.
 
 ---
 
 ## Good to know
 
-- **Not a funds guarantee, and unclaimed pay is revocable.** Because funds are pulled from the sender, arrears
-  are only collectable while the sender stays funded and approved. A single missed/underfunded pull
-  **permanently** stops future accrual (arrears preserved), and the sender can **cancel to forfeit everything
-  unclaimed**. Claim promptly.
-- **Fees.** While the protocol is fee-free (launch), claims cost no protocol fee. When fees are active, the
-  in-kind fee is taken from the pulled amount, attributed to the funder — the recipient receives the net.
-- **ERC-20 only**, standard tokens (the same curated allowlist as transfers).
+- **Debit, not credit; no chargebacks.** Funds must exist in the sender's wallet at charge time; there is no
+  credit line and no dispute/refund path (settlement is final).
+- **Unclaimed pay is revocable.** Collection depends on the sender staying funded + approved; older uncollected
+  cycles lapse via `maxArrears`, and a sender **cancel** forfeits everything unclaimed. Charge promptly.
+- **Fees.** While the protocol is fee-free (launch), charges cost no protocol fee. When fees are active, the
+  in-kind fee is taken from the collected amount, attributed to the funder — the recipient receives the net.
+- **ERC-20 only**, standard tokens (the same curated allowlist as transfers). Fixed amount only (no variable /
+  usage-based billing today).
 ```
 
 ---
