@@ -50,31 +50,57 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>Vektes Protocol</strong></td>
+<td><strong>Vektes Protocol v2</strong> — current</td>
+<td><code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code></td>
+<td><code>VektesProtocolV2</code> — deployed 2026-09-11 from CertiK-audited tag <code>audit-2.6.0</code>. Permissionless release, in-kind fees, claim-by-link, airdrop campaigns, recurring allowances. <strong>Use this for new integrations.</strong></td>
+</tr>
+<tr>
+<td><strong>Vektes Protocol v1</strong> — legacy</td>
 <td><code>0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</code></td>
-<td>Core protocol contract — handles sends, claims, and rejections</td>
+<td><code>VektesProtocol</code> — live and immutable; transfers scheduled on it are still claimed on it. No new integrations.</td>
 </tr>
 <tr>
 <td><strong>VEK Token</strong></td>
 <td><code>0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215</code></td>
-<td>ERC-20 fee token (and future governance)</td>
+<td>ERC-20 utility token (unchanged across versions — no migration)</td>
 </tr>
 <tr>
 <td><strong>Gnosis Safe (Owner + Treasury)</strong></td>
 <td><code>0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207</code></td>
-<td>2-of-3 multisig that owns the protocol contract and receives the treasury share of fees</td>
+<td>2-of-3 multisig that owns the protocol contracts and receives protocol fees</td>
 </tr>
 </tbody></table></div>
+<blockquote>
+<p><strong>v2 is a separate contract, not an upgrade.</strong> It shares no state with v1. Anything you scheduled on v1 stays on v1 (claim/reject there); anything new goes to v2. The token and vesting are untouched.</p>
+</blockquote>
 <hr>
 <h2 id="etherscan-links">Etherscan Links</h2>
 <ul>
-<li><strong>Protocol:</strong> <a href="https://etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7#code">etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</a></li>
+<li><strong>Protocol v2:</strong> <a href="https://etherscan.io/address/0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34#code">etherscan.io/address/0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</a></li>
+<li><strong>Protocol v1 (legacy):</strong> <a href="https://etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7#code">etherscan.io/address/0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</a></li>
 <li><strong>VEK Token:</strong> <a href="https://etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215">etherscan.io/token/0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215</a></li>
 <li><strong>Gnosis Safe:</strong> <a href="https://app.safe.global/home?safe=eth:0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207">app.safe.global/eth:0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207</a></li>
 </ul>
 <hr>
 <h2 id="contract-configuration">Contract Configuration</h2>
-<h3 id="protocol-contract-vektesprotocol">Protocol Contract (<code>VektesProtocol</code>)</h3>
+<h3 id="protocol-v2-vektesprotocolv2-current">Protocol v2 (<code>VektesProtocolV2</code>) — current</h3>
+<pre><code>Owner:            0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe, Ownable2Step)
+Treasury:         0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe)
+Fee model:        in-kind — taken from the asset being sent (never in VEK); recipient gets amount − fee
+Fee ceiling:      MAX_FEE_BPS = 1000 (1%, immutable); every fee-bearing call takes a caller `maxFee` cap
+Fee status:       all tiers 0 bps (fee-free launch); $VEK transfers are fee-exempt
+WETH:             0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2 (un-deliverable ETH is delivered as WETH)
+Pausable:         Yes (owner-only; only new sends/claimables/campaigns/allowances pause — release, reject,
+                  reclaim, withdraw and allowance collection never pause)
+Upgradeable:      No (immutable deployment — no proxy, no delegatecall)
+Audit:            CertiK, tag audit-2.6.0, final 2026-09-11 — 0 Critical / 0 Major
+</code></pre>
+<p>Key behavioural differences from v1: after the settlement date <strong>anyone</strong> may <code>release()</code> a scheduled
+transfer to its fixed recipient (no <code>claim()</code>); the recipient may <code>reject()</code> at any time before release;
+a payout that cannot be delivered is credited and pulled with <code>withdraw(token, to)</code>. Full function
+reference: the verified source on Etherscan and the
+<a href="https://github.com/bontidy/vektes-contracts">contracts repository</a> (<code>FEATURES.md</code>, <code>TESTNET.md</code>).</p>
+<h3 id="protocol-v1-vektesprotocol-legacy">Protocol v1 (<code>VektesProtocol</code>) — legacy</h3>
 <pre><code>Owner:            0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe, Ownable2Step)
 Treasury:         0xBdCDb466c70E21A985E7eA02Be6E838aD5c00207 (Gnosis Safe)
 Fee token:        0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215 (VEK)
@@ -132,22 +158,20 @@ Burnable:        Yes (ERC20Burnable; protocol fees are also burned to 0x…dEaD)
 <h2 id="integration-checklist">Integration Checklist</h2>
 <p>When integrating with Vektes, your application interacts with:</p>
 <ol>
-<li><strong>Vektes Protocol</strong> (<code>0xd055…8B7</code>) — for <code>send()</code>, <code>claim()</code>, <code>getTransfer()</code>, etc.</li>
-<li><strong>The ERC-20 token being transferred</strong> — <code>approve()</code> the protocol before sending.</li>
-<li><strong>VEK Token</strong> (<code>0xb4fa…d215</code>) — <code>approve()</code> the protocol to cover fees <strong>only when fees are active</strong> (they are currently 0). <code>previewFee()</code> returns the amount to budget.</li>
+<li><strong>Vektes Protocol v2</strong> (<code>0x1340…Ad34</code>) — for <code>send()</code>, <code>release()</code>, <code>reject()</code>, <code>getTransfer()</code>, etc.</li>
+<li><strong>The ERC-20 token being transferred</strong> — <code>approve()</code> the protocol before sending. On v2 the fee (if any) is taken from this same asset, so <strong>no VEK approval is needed</strong>.</li>
 </ol>
-<pre><code class="language-typescript">// Minimal setup
-const VEKTES = &quot;0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7&quot;;
-const VEK    = &quot;0xb4fa28e9dBA552dF8a55579Bc9494f0F7486d215&quot;;
+<pre><code class="language-typescript">// Minimal setup (v2)
+const VEKTES = &quot;0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34&quot;;
 const USDC   = &quot;0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&quot;;
 
-// Approve the transfer token
+// Approve the transfer token (approve the exact amount rather than MaxUint256 where practical)
 const usdc = new ethers.Contract(USDC, ERC20_ABI, signer);
-await usdc.approve(VEKTES, ethers.MaxUint256);
+await usdc.approve(VEKTES, amount);
 
-// Approve VEK for fees (only needed once fees are activated; a no-op while free)
-const vek = new ethers.Contract(VEK, ERC20_ABI, signer);
-await vek.approve(VEKTES, ethers.MaxUint256);
+// Send with a fee cap in the transfer asset. 1% is the contract&#39;s own immutable ceiling (MAX_FEE_BPS = 1000);
+// fees are 0 today, so this never binds — but never pass 0, which on v2 means &quot;accept no fee at all&quot;.
+await vektes[&quot;send(address,address,uint256,bytes32,uint256,uint256)&quot;](USDC, to, amount, txCode, 0, amount * 1000n / 100000n);
 </code></pre>
 <hr>
 <h2 id="network-details">Network Details</h2>

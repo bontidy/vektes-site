@@ -1,5 +1,17 @@
 # Integration Guide
 
+> **Vektes Protocol v2 is live** (2026-09-11) at **`0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34`**
+> (`VektesProtocolV2`, CertiK-audited tag `audit-2.6.0`) — **new integrations should target v2.** This guide
+> was written for v1 (`0xd055…E8B7`, still live for transfers already scheduled on it). The `send` /
+> `sendNative` / `getTransfer` / `isCodeUsed` / `previewFee` shapes carry over; what changes on v2:
+> `claim` → permissionless **`release(sender, recipient, txCode)`**, `rejectTransfer` → **`reject`**,
+> `batchClaim` → **`releaseMany`**, `isClaimable` → **`isReleasable`**, the struct fields `claimed`/`cancelled`
+> → **`released`/`rejected`**, the trailing `maxFeeVek` → **`maxFee` in the transfer asset** (strict cap — don't
+> pass `0`; the 1% ceiling `amount * 1000n / 100000n` is a safe value while fees are 0), and events
+> `TransferClaimed` → **`TransferReleased`**. See the
+> [contracts repository](https://github.com/bontidy/vektes-contracts) (`FEATURES.md`, `TESTNET.md`) for the
+> new claim-by-link, airdrop and recurring-allowance flows.
+
 Build a payment application on the Vektes protocol. Covers sending (instant and scheduled), monitoring, claiming, and rejecting.
 
 ---

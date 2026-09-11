@@ -1,8 +1,20 @@
 # Protocol Reference
 
-Complete function reference for the deployed Vektes smart contract (`VektesProtocol`, immutable).
+> **Vektes Protocol v2 is live** (2026-09-11) at **`0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34`**
+> (`VektesProtocolV2`, CertiK-audited tag `audit-2.6.0`). **This page documents v1**, which stays live and
+> immutable for transfers already scheduled on it. The v2 differences that matter to integrators:
+> `claim()` is replaced by permissionless **`release(sender, recipient, txCode)`** (anyone may call it after
+> the date; funds always go to the fixed recipient); `rejectTransfer()` is **`reject(sender, txCode)`** and
+> works any time before release; the fee is taken **in the transfer asset**, so the last `send` argument is
+> **`maxFee` in that asset** (a strict cap — `0` means "no fee accepted", not "no cap"); un-deliverable
+> payouts are credited and pulled with **`withdraw(token, to)`**; plus new claim-by-link, airdrop-campaign and
+> recurring-allowance flows. Until the v2 reference is published here, use the verified source on
+> [Etherscan](https://etherscan.io/address/0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34#code) and the
+> [contracts repository](https://github.com/bontidy/vektes-contracts).
 
-**Contract:** `0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7`
+Complete function reference for the **v1** Vektes smart contract (`VektesProtocol`, immutable, legacy).
+
+**Contract (v1):** `0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7`
 
 > **Key model:** a transfer is identified by the tuple **`(sender, recipient, txCode)`**. The on-chain key is `keccak256(abi.encodePacked(sender, recipient, txCode))`. A `txCode` is therefore unique **per sender→recipient pair**, and all lookups require the recipient as well as the sender.
 >

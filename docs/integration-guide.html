@@ -38,6 +38,19 @@
   </aside>
   <main class="doc-content">
 <h1 id="integration-guide">Integration Guide</h1>
+<blockquote>
+<p><strong>Vektes Protocol v2 is live</strong> (2026-09-11) at <strong><code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code></strong>
+(<code>VektesProtocolV2</code>, CertiK-audited tag <code>audit-2.6.0</code>) — <strong>new integrations should target v2.</strong> This guide
+was written for v1 (<code>0xd055…E8B7</code>, still live for transfers already scheduled on it). The <code>send</code> /
+<code>sendNative</code> / <code>getTransfer</code> / <code>isCodeUsed</code> / <code>previewFee</code> shapes carry over; what changes on v2:
+<code>claim</code> → permissionless <strong><code>release(sender, recipient, txCode)</code></strong>, <code>rejectTransfer</code> → <strong><code>reject</code></strong>,
+<code>batchClaim</code> → <strong><code>releaseMany</code></strong>, <code>isClaimable</code> → <strong><code>isReleasable</code></strong>, the struct fields <code>claimed</code>/<code>cancelled</code>
+→ <strong><code>released</code>/<code>rejected</code></strong>, the trailing <code>maxFeeVek</code> → <strong><code>maxFee</code> in the transfer asset</strong> (strict cap — don&#39;t
+pass <code>0</code>; the 1% ceiling <code>amount * 1000n / 100000n</code> is a safe value while fees are 0), and events
+<code>TransferClaimed</code> → <strong><code>TransferReleased</code></strong>. See the
+<a href="https://github.com/bontidy/vektes-contracts">contracts repository</a> (<code>FEATURES.md</code>, <code>TESTNET.md</code>) for the
+new claim-by-link, airdrop and recurring-allowance flows.</p>
+</blockquote>
 <p>Build a payment application on the Vektes protocol. Covers sending (instant and scheduled), monitoring, claiming, and rejecting.</p>
 <hr>
 <h2 id="setup">Setup</h2>

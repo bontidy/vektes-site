@@ -38,6 +38,13 @@
   </aside>
   <main class="doc-content">
 <h1 id="quick-start">Quick Start</h1>
+<blockquote>
+<p><strong>Vektes Protocol v2 is live</strong> (2026-09-11) at <strong><code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code></strong> —
+use that address for new sends. The examples below were written for v1 (<code>0xd055…E8B7</code>, legacy, still
+live); on v2 the <code>send</code> calls are the same except the last argument is a <strong>fee cap in the asset you are
+sending</strong> (pass <code>amount * 1000n / 100000n</code>, the contract&#39;s 1% ceiling — never <code>0</code>), no VEK approval is ever
+needed, and after the settlement date the transfer is <strong>released</strong> by anyone (<code>release(sender, recipient, txCode)</code>) rather than claimed by the recipient. See <a href="/docs/contracts">Contracts</a> for the v2 configuration.</p>
+</blockquote>
 <p>Send your first transfer through the Vektes protocol in a few minutes.</p>
 <hr>
 <h2 id="prerequisites">Prerequisites</h2>
@@ -52,7 +59,7 @@
 <h2 id="1-approve-the-token">1. Approve the Token</h2>
 <pre><code class="language-typescript">// ethers.js v6
 const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-await token.approve(&quot;0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7&quot;, amount);
+await token.approve(&quot;0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34&quot;, amount); // v2 (v1: 0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7)
 </code></pre>
 <hr>
 <h2 id="2-send-a-transfer">2. Send a Transfer</h2>

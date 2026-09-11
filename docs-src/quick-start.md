@@ -1,5 +1,12 @@
 # Quick Start
 
+> **Vektes Protocol v2 is live** (2026-09-11) at **`0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34`** —
+> use that address for new sends. The examples below were written for v1 (`0xd055…E8B7`, legacy, still
+> live); on v2 the `send` calls are the same except the last argument is a **fee cap in the asset you are
+> sending** (pass `amount * 1000n / 100000n`, the contract's 1% ceiling — never `0`), no VEK approval is ever
+> needed, and after the settlement date the transfer is **released** by anyone (`release(sender, recipient,
+> txCode)`) rather than claimed by the recipient. See [Contracts](./contracts.md) for the v2 configuration.
+
 Send your first transfer through the Vektes protocol in a few minutes.
 
 ---
@@ -19,7 +26,7 @@ Send your first transfer through the Vektes protocol in a few minutes.
 ```typescript
 // ethers.js v6
 const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-await token.approve("0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7", amount);
+await token.approve("0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34", amount); // v2 (v1: 0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7)
 ```
 
 ---
