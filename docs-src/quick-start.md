@@ -1,23 +1,22 @@
 # Quick Start
 
-> **Vektes Protocol v2 is live** (2026-09-11) at **`0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34`** —
-> use that address for new sends. The examples below were written for v1 (`0xd055…E8B7`, legacy, still
-> live); on v2 the `send` calls are the same except the last argument is a **fee cap in the asset you are
-> sending** (pass `amount * 1000n / 100000n`, the contract's 1% ceiling — never `0`), no VEK approval is ever
-> needed, and after the settlement date the transfer is **released** by anyone (`release(sender, recipient,
-> txCode)`) rather than claimed by the recipient. See [Contracts](./contracts.md) for the v2 configuration.
-
-Send your first transfer through the Vektes protocol in a few minutes.
+Send your first transfer through Vektes Protocol v2 in a few minutes.
 
 ---
 
 ## Prerequisites
 
 - An EVM wallet with ETH for gas plus the token you want to send
-- The token must be **on the supported-token allowlist** (currently USDC, USDT; native ETH always works)
-- Approve the protocol to spend the token (standard ERC-20 `approve`)
+- The token must be **on the supported-token allowlist** (USDC, USDT, $VEK; native ETH always works)
+- Approve the protocol to spend the token (standard ERC-20 `approve`) — or use `sendWithPermit` for ERC-2612 tokens
 - A unique transaction code (`bytes32`) — your dedup key, unique per **sender→recipient** pair
-- VEK for fees **only if fees are active** (they are currently `0` — see [Fee Model](./fee-model.md))
+- **No $VEK is ever needed.** Any fee is taken from the asset you send, and fees are currently `0` — see [Fee Model](./fee-model.md)
+
+```typescript
+const VEKTES_ADDRESS = "0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34"; // v2, Ethereum mainnet
+const USDC_ADDRESS   = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const MAX_FEE = (amount: bigint) => amount * 1000n / 100000n;         // the 1% protocol ceiling — never pass 0
+```
 
 ---
 
@@ -25,8 +24,8 @@ Send your first transfer through the Vektes protocol in a few minutes.
 
 ```typescript
 // ethers.js v6
-const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-await token.approve("0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34", amount); // v2 (v1: 0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7)
+const token = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+await token.approve(VEKTES_ADDRESS, amount);
 ```
 
 ---
@@ -35,65 +34,60 @@ await token.approve("0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34", amount); // v2
 
 ### Instant ERC-20 transfer (`settlementDate = 0`)
 
-With `settlementDate = 0`, the recipient receives the funds **immediately, in the same transaction** — there's nothing to claim.
+With `settlementDate = 0`, the recipient receives the funds **immediately, in the same transaction** — there is nothing to release.
 
 ```typescript
 const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, signer);
 
-const txCode = ethers.id("INV-2026-0042"); // bytes32, unique for this recipient
+const amount = 1_000_000n;                      // 1 USDC (6 decimals)
+const txCode = ethers.id("INV-2026-0042");      // bytes32, unique for this recipient
 
-const tx = await vektes.send(
+const tx = await vektes["send(address,address,uint256,bytes32,uint256,uint256)"](
   USDC_ADDRESS,      // token (must be supported)
   recipientAddress,  // to
-  1_000_000n,        // amount (1 USDC, 6 decimals)
+  amount,            // amount pulled from you; the recipient gets amount − fee (fee is 0 today)
   txCode,            // unique code (per sender→recipient)
-  0                  // settlementDate: 0 = instant delivery
+  0,                 // settlementDate: 0 = instant delivery
+  MAX_FEE(amount)    // maxFee: strict cap on the in-kind fee, in USDC units
 );
 await tx.wait();
 console.log("Delivered:", tx.hash);
 ```
 
-To protect against fee slippage once fees are active, use the 6-argument overload with a `maxFeeVek` cap (quote it via `previewFee`):
-
-```typescript
-const fee = await vektes.previewFee(signer.address, USDC_ADDRESS, 1_000_000n);
-await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, 0, fee);
-```
+> `maxFee` is a **strict** cap in the asset you send. `0` means "accept no fee" and will revert the moment fees are switched on. Use the 1% ceiling above, or quote the exact fee with `previewFee(sender, token, amount)`.
 
 ### Scheduled transfer (future settlement)
 
-With a future `settlementDate`, funds are **held in the contract** until that time, then the recipient claims.
+With a future `settlementDate`, funds are **held in the contract** until that time. After it, **anyone** — you, the recipient, or a keeper — can release them to the recipient. Until release the recipient can reject to refund you; you can never claw the funds back.
 
 ```typescript
 const settlementDate = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // +7 days
-await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, settlementDate);
+await vektes["send(address,address,uint256,bytes32,uint256,uint256)"](
+  USDC_ADDRESS, recipientAddress, amount, txCode, settlementDate, MAX_FEE(amount));
 ```
 
 ### Native ETH
 
 ```typescript
-const tx = await vektes.sendNative(
-  recipientAddress,
-  txCode,
-  0,                                    // 0 = instant
-  { value: ethers.parseEther("0.5") }
-);
+const value = ethers.parseEther("0.5");
+const tx = await vektes["sendNative(address,bytes32,uint256,uint256)"](
+  recipientAddress, txCode, 0 /* instant */, MAX_FEE(value), { value });
 ```
 
 ---
 
-## 3. Claim a Scheduled Transfer (recipient)
+## 3. Release a Scheduled Transfer (anyone)
 
-Only needed for **scheduled** transfers, once the settlement date has passed. (Instant transfers are already delivered — no claim.)
+Only needed for **scheduled** transfers, once the settlement date has passed. Instant transfers are already delivered.
 
 ```typescript
-const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, recipientSigner);
-const tx = await vektes.claim(senderAddress, txCode);
+// Any signer may call this; funds go to the fixed recipient regardless of who calls.
+const tx = await vektes.release(senderAddress, recipientAddress, txCode);
 await tx.wait();
-console.log("Funds claimed!");
+console.log("Released!");
 ```
 
-The recipient can instead `rejectTransfer(senderAddress, txCode)` at any time before claiming, which refunds the sender.
+The recipient can instead `reject(senderAddress, txCode)` at any time before release, which refunds the sender in full.
 
 ---
 
@@ -105,10 +99,10 @@ All lookups take **sender, recipient, and code**:
 // Scheduled transfers only — instant transfers are not stored (track them via the InstantTransfer event)
 const t = await vektes.getTransfer(senderAddress, recipientAddress, txCode);
 console.log(t);
-// { token, sender, recipient, amount, fee, settlementDate, createdAt, txCode, claimed, cancelled }
+// { token, sender, recipient, amount, fee, settlementDate, createdAt, txCode, released, rejected, usdVolume, volumePeriod }
 
-const claimable = await vektes.isClaimable(senderAddress, recipientAddress, txCode);
-console.log("Claimable now:", claimable);
+const ready = await vektes.isReleasable(senderAddress, recipientAddress, txCode);
+console.log("Releasable now:", ready);
 ```
 
 ---
@@ -121,6 +115,7 @@ console.log("Claimable now:", claimable);
 |----------|---------|
 | Hash an invoice ID | `ethers.id("INV-2026-0042")` |
 | Hash a UUID | `ethers.id("550e8400-e29b-41d4-a716-446655440000")` |
+| Human-readable (≤ 31 chars) | `ethers.encodeBytes32String("INV-2026-0042")` — what the Vektes app uses |
 | Incremental counter | `ethers.zeroPadValue(ethers.toBeHex(nonce), 32)` |
 
 ```typescript
@@ -128,12 +123,12 @@ console.log("Claimable now:", claimable);
 const used = await vektes.isCodeUsed(signer.address, recipientAddress, txCode);
 ```
 
-> ⚠️ **Important:** reusing a code for the *same* recipient reverts with `DuplicateTransactionCode(txCode, recipient)`.
+> ⚠️ Reusing a code for the *same* recipient reverts with `DuplicateTransactionCode(txCode, recipient)`.
 
 ---
 
 ## Next Steps
 
-- [Protocol Reference →](./protocol-reference.md) — full function signatures and parameters
-- [Fee Model →](./fee-model.md) — how fees work (and why they're currently free)
+- [Protocol Reference →](./protocol-reference.md) — full function signatures, including claim-by-link, airdrops and recurring allowances
+- [Fee Model →](./fee-model.md) — in-kind fees, `previewFee`, and `maxFee`
 - [Integration Guide →](./integration-guide.md) — build a full payment flow

@@ -28,6 +28,7 @@
       <a href="/docs/">Overview</a>
       <a href="/docs/quick-start">Quick Start</a>
       <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/protocol-reference-v1">Protocol Reference (v1, legacy)</a>
       <a href="/docs/fee-model">Fee Model</a>
       <a href="/docs/integration-guide">Integration Guide</a>
       <a href="/docs/contracts">Contracts</a>
@@ -40,23 +41,30 @@
 <h1 id="security">Security</h1>
 <p>Vektes is designed with defense-in-depth. The protocol is independently audited, uses OpenZeppelin access-control and safety primitives, is non-upgradeable, and minimizes owner power to configuration only.</p>
 <hr>
-<h2 id="audit">Audit</h2>
+<h2 id="audits">Audits</h2>
 <div class="table-wrap"><table>
 <thead>
 <tr>
+<th>Contract</th>
 <th>Auditor</th>
-<th>Scope</th>
-<th>Findings</th>
+<th>Audited tag</th>
+<th>Result</th>
 </tr>
 </thead>
 <tbody><tr>
+<td><strong>Vektes Protocol v2</strong> (<code>VektesProtocolV2</code>, <code>0x1340…Ad34</code>)</td>
 <td><strong>CertiK</strong></td>
-<td>Full protocol contract + VEK token</td>
-<td>No critical or high-severity issues (remediations applied; e.g. per-recipient dedup, per-feed staleness, actual-balance accounting)</td>
+<td><code>audit-2.6.0</code> (final 2026-09-11)</td>
+<td>7 findings — 0 Critical, 1 Major, 4 Medium, 1 Minor, 1 Centralization. <strong>All 6 code findings resolved</strong>; the centralization item (owner privileges on a multisig, no timelock yet) acknowledged.</td>
+</tr>
+<tr>
+<td>Vektes Protocol v1 (<code>VektesProtocol</code>, <code>0xd055…E8B7</code>) + VEK token + vesting</td>
+<td><strong>CertiK</strong></td>
+<td><code>audit-1.1.0</code> (final 2026-07-30)</td>
+<td>0 Critical / 0 Major; all code findings resolved.</td>
 </tr>
 </tbody></table></div>
-<p>Public report: <a href="https://skynet.certik.com/projects/vektes">skynet.certik.com/projects/vektes</a>.</p>
-<p>The audit covered state-changing functions (<code>send</code>, <code>sendNative</code>, <code>claim</code>, <code>rejectTransfer</code>, <code>batchClaim</code>), fee calculation and oracle integration, access control and ownership, reentrancy, and settlement-date edge cases.</p>
+<p>Public profile: <a href="https://skynet.certik.com/projects/vektes">skynet.certik.com/projects/vektes</a>. The v2 review covered the permissionless release model, deliver-or-credit payouts, in-kind fees and caps, claim-by-link signature binding, campaign and recurring-allowance accounting, access control, reentrancy and settlement-date edge cases. Dispositions are listed in <code>SECURITY.md</code> of the <a href="https://github.com/bontidy/vektes-contracts">contracts repository</a>.</p>
 <hr>
 <h2 id="access-control">Access Control</h2>
 <p>Ownership uses <strong>OpenZeppelin <code>Ownable2Step</code></strong> (two-step transfer: <code>transferOwnership</code> then <code>acceptOwnership</code>), held by the Gnosis Safe:</p>
@@ -64,17 +72,17 @@
 </code></pre>
 <h3 id="owner-only-functions-configuration-only">Owner-only functions (configuration only)</h3>
 <ul>
-<li><code>pause()</code> / <code>unpause()</code> — emergency circuit breaker for new sends</li>
+<li><code>pause()</code> / <code>unpause()</code> — circuit breaker for <strong>creating</strong> new transfers, links, campaigns and allowances</li>
 <li><code>setPriceFeed(token, feed, threshold)</code> / <code>setStalePriceThreshold(token, threshold)</code> — oracle config</li>
-<li><code>setTreasury(address)</code> — treasury fee recipient</li>
-<li><code>setBurnPercentage(uint256)</code> — burn/treasury split (0–100)</li>
+<li><code>setTreasury(address)</code> — the only destination fees can be swept to</li>
 <li><code>setTokenSupport(token, bool)</code> — supported-token allowlist</li>
-<li><code>setFeeToken(address)</code> — the fee token ($VEK)</li>
-<li><code>updateFeeTier(index, threshold, feeBps)</code> — fee-tier schedule</li>
+<li><code>setFeeExempt(token, bool)</code> — fee-exempt tokens (e.g. $VEK)</li>
+<li><code>updateFeeTier(index, threshold, feeBps)</code> — fee-tier schedule, bounded by the immutable <code>MAX_FEE_BPS</code> (1%)</li>
+<li><code>withdrawFees(token, amount)</code> — sweep <strong>accrued fees only</strong> to the treasury</li>
 <li><code>transferOwnership</code> / <code>acceptOwnership</code></li>
 </ul>
 <blockquote>
-<p>No owner function can access, redirect, or freeze user funds, change a transfer&#39;s recipient, or block a claim on a settled transfer.</p>
+<p>No owner function can access, redirect, or freeze escrowed user funds, change a transfer&#39;s recipient, block a release or rejection, or take more than the accrued fees.</p>
 </blockquote>
 <h3 id="what-the-owner-can-cannot-do">What the Owner Can / Cannot Do</h3>
 <div class="table-wrap"><table>
@@ -85,16 +93,20 @@
 </tr>
 </thead>
 <tbody><tr>
-<td>Steal or move locked user funds</td>
+<td>Steal or move escrowed user funds</td>
+<td>❌ No (<code>withdrawFees</code> spends only the <code>accruedFees</code> accounting)</td>
+</tr>
+<tr>
+<td>Change a transfer&#39;s recipient / amount / date</td>
 <td>❌ No</td>
 </tr>
 <tr>
-<td>Change a transfer&#39;s recipient/amount</td>
-<td>❌ No</td>
-</tr>
-<tr>
-<td>Prevent claims/rejections after settlement</td>
+<td>Prevent releases, rejections, claims, reclaims, withdrawals or allowance collection</td>
 <td>❌ No (those paths are not pausable)</td>
+</tr>
+<tr>
+<td>Set a fee above 1%</td>
+<td>❌ No (<code>MAX_FEE_BPS</code> is a constant)</td>
 </tr>
 <tr>
 <td>Mint VEK / inflate supply</td>
@@ -105,11 +117,11 @@
 <td>❌ No (immutable, no proxy)</td>
 </tr>
 <tr>
-<td>Pause <strong>new</strong> sends</td>
+<td>Pause <strong>new</strong> sends / links / campaigns / allowances</td>
 <td>✅ Yes (emergency)</td>
 </tr>
 <tr>
-<td>Update fee tiers / burn split / treasury</td>
+<td>Update fee tiers (≤ 1%) / treasury / fee-exempt flags</td>
 <td>✅ Yes (configuration)</td>
 </tr>
 <tr>
@@ -118,30 +130,43 @@
 </tr>
 </tbody></table></div>
 <blockquote>
-<p><strong>Note on fee tiers:</strong> these are <strong>configurable</strong>, not immutable — the owner can change rates and thresholds via <code>updateFeeTier</code>. The protocol launched with all tiers at <code>0</code> (free). What is <em>immutable</em> is the contract logic itself.</p>
+<p><strong>Note on fee tiers:</strong> these are <strong>configurable</strong>, not immutable — the owner can change rates and thresholds via <code>updateFeeTier</code>, up to the 1% ceiling. The protocol launched with all tiers at <code>0</code> (free). What is <em>immutable</em> is the contract logic itself and the ceiling.</p>
 </blockquote>
 <hr>
 <h2 id="reentrancy-protection">Reentrancy Protection</h2>
 <p>All fund-moving functions carry OpenZeppelin&#39;s <code>nonReentrant</code> guard and follow checks-effects-interactions:</p>
-<pre><code>send() / sendNative()  → nonReentrant ✓
-claim() / batchClaim() → nonReentrant ✓
-rejectTransfer()       → nonReentrant ✓
+<pre><code>send() / sendWithPermit() / sendNative()          → nonReentrant ✓
+release() / releaseMany() / reject() / withdraw()  → nonReentrant ✓
+createClaimable*() / claimTo() / reclaim()         → nonReentrant ✓
+createCampaign() / topUpCampaign() / claimCampaign() / reclaimCampaign() → nonReentrant ✓
+claimAllowance()                                   → nonReentrant ✓
 </code></pre>
-<p>State (dedup flags, <code>claimed</code>/<code>cancelled</code>, counters) is updated <strong>before</strong> any external token/native transfer. For inbound ERC-20s the contract credits the <strong>actual balance received</strong> (balance delta), so accounting stays correct and solvent; fee-on-transfer/rebasing tokens are additionally kept off the allowlist by policy.</p>
+<p>State (dedup flags, <code>released</code> / <code>rejected</code> / <code>claimed</code> flags, counters, credits) is updated <strong>before</strong> any external token/native transfer. For inbound ERC-20s the contract credits the <strong>actual balance received</strong> (balance delta), so accounting stays correct and solvent; fee-on-transfer/rebasing tokens are additionally kept off the allowlist by policy. The solvency invariant <code>balance == accruedFees + Σ held escrow + Σ credits</code> is exercised by randomized tests.</p>
+<hr>
+<h2 id="deliver-or-credit-no-stranded-funds">Deliver-or-credit (no stranded funds)</h2>
+<p>Outbound payouts that resolve an escrow (<code>release</code>, <code>releaseMany</code>, <code>reject</code>, <code>reclaim</code>, <code>reclaimCampaign</code>) are attempted through a self-call inside <code>try/catch</code>. If the push fails, native ETH is wrapped to WETH and delivered; an undeliverable ERC-20 is credited to the beneficiary for <code>withdraw(token, to)</code>. Consequences:</p>
+<ul>
+<li>A single bad recipient can never permanently lock its own escrow, nor revert anyone else&#39;s release in a batch.</li>
+<li>A <strong>contract</strong> recipient must be able to hold WETH or call <code>withdraw</code> — choosing a compatible destination is the sender&#39;s responsibility.</li>
+<li>The protocol contract itself is rejected as a recipient or payout address (<code>InvalidRecipient</code>).</li>
+</ul>
 <hr>
 <h2 id="pausable">Pausable</h2>
 <p>Implements OpenZeppelin <code>Pausable</code>:</p>
 <ul>
-<li><strong>When paused:</strong> <code>send()</code> / <code>sendNative()</code> are disabled — no new transfers.</li>
-<li><strong>When paused:</strong> <code>claim()</code>, <code>batchClaim()</code>, and <code>rejectTransfer()</code> <strong>remain active</strong> — funds already in the contract can always be withdrawn or refunded.</li>
+<li><strong>When paused:</strong> <code>send</code>, <code>sendWithPermit</code>, <code>sendNative</code>, <code>createClaimable</code>, <code>createClaimableNative</code>, <code>createCampaign</code>, <code>topUpCampaign</code> and <code>createAllowance</code> are disabled — nothing new can be created.</li>
+<li><strong>When paused:</strong> <code>release</code>, <code>releaseMany</code>, <code>reject</code>, <code>shortenSettlementDate</code>, <code>withdraw</code>, <code>claimTo</code>, <code>reclaim</code>, <code>claimCampaign</code>, <code>reclaimCampaign</code>, <code>claimAllowance</code>, <code>cancelAllowance</code> and <code>extendAllowance</code> <strong>remain active</strong> — funds already committed can always exit.</li>
 </ul>
-<p>A pause can never trap locked funds.</p>
+<p>A pause can never trap funds.</p>
 <hr>
 <h2 id="immutable-deployment">Immutable Deployment</h2>
-<p>The protocol contract is <strong>not upgradeable</strong> — no proxy, no <code>delegatecall</code>, no implementation swap. The address and logic are permanent, so users can verify exactly the code that governs their funds.</p>
+<p>The protocol contract is <strong>not upgradeable</strong> — no proxy, no <code>delegatecall</code>, no implementation swap. The address and logic are permanent, so users can verify exactly the code that governs their funds. v2 is a separate deployment from v1; neither can affect the other.</p>
+<hr>
+<h2 id="claim-link-signature-safety">Claim-link signature safety</h2>
+<p><code>claimTo</code> and <code>claimCampaign</code> require an EIP-712 signature by the link&#39;s key over <code>Claim(sender, claimAddr, txCode, payoutTo)</code>, with the domain bound to the chain id and contract address. Because the <strong>payout address is inside the signed message</strong>, a signature observed in the mempool cannot be replayed to a different destination, and a signature for one contract or chain is useless on another. Claims are refused at/after <code>expiry</code>, so a claim and the sender&#39;s reclaim can never race.</p>
 <hr>
 <h2 id="oracle-safety">Oracle Safety</h2>
-<p>Fees are priced through Chainlink <code>AggregatorV3Interface</code> feeds registered per token. Each feed has its <strong>own staleness threshold</strong>; an answer older than the threshold, non-positive, or from an unset feed reverts the transfer (<code>StalePrice</code> / <code>InvalidPrice</code> / <code>PriceFeedNotSet</code>). Oracle issues can only block or misprice a <em>fee</em> — they never affect the transfer amount, which is delivered in full.</p>
+<p>Fees are tiered through Chainlink <code>AggregatorV3Interface</code> feeds registered per token. Each feed has its <strong>own staleness threshold</strong>; an answer older than the threshold, non-positive, or from an unset feed reverts the send (<code>StalePrice</code> / <code>InvalidPrice</code> / <code>PriceFeedNotSet</code>). The oracle only influences <strong>which tier</strong> applies — the fee is a percentage of the sent asset, bounded by the 1% ceiling and the caller&#39;s <code>maxFee</code>. Fee-exempt tokens bypass the oracle entirely.</p>
 <hr>
 <h2 id="fund-safety">Fund Safety</h2>
 <div class="table-wrap"><table>
@@ -153,23 +178,31 @@ rejectTransfer()       → nonReentrant ✓
 </thead>
 <tbody><tr>
 <td>Protocol paused</td>
-<td>Claims/rejections still work; only new sends are blocked.</td>
+<td>Releases, rejections, claims, reclaims, withdrawals and allowance collection still work; only creation is blocked.</td>
 </tr>
 <tr>
 <td>Owner key compromised</td>
-<td>Attacker can only reconfigure/pause. Cannot access user funds, change recipients, or mint VEK.</td>
+<td>Attacker can only reconfigure (fees ≤ 1%, feeds, allowlist), pause creation, or sweep already-accrued fees to the treasury. Cannot touch escrow, change recipients, or mint VEK.</td>
 </tr>
 <tr>
 <td>Oracle stale/manipulated</td>
-<td>Fee calc reverts or is bounded; transfer amounts unaffected; sender&#39;s <code>maxFeeVek</code> caps exposure.</td>
+<td>Sends revert or the tier is wrong within the 1% ceiling and the sender&#39;s <code>maxFee</code>; escrowed amounts are unaffected.</td>
 </tr>
 <tr>
 <td>Malicious/odd ERC-20</td>
 <td>Reentrancy guard + actual-balance accounting; non-standard tokens kept off the allowlist.</td>
 </tr>
 <tr>
+<td>Recipient can&#39;t receive the payout</td>
+<td>Delivered as WETH (ETH) or credited for <code>withdraw</code> (ERC-20). Never stuck, never reverts others.</td>
+</tr>
+<tr>
 <td>Recipient loses keys (scheduled)</td>
-<td>Funds stay locked; the sender cannot reclaim (irrevocability) — but the recipient could still <code>rejectTransfer</code> to refund the sender if they retain access.</td>
+<td>Anyone can still release to that address; the sender cannot reclaim (irrevocability).</td>
+</tr>
+<tr>
+<td>Lost claim link</td>
+<td>The sender reclaims after <code>expiry</code>. Before expiry only the link holder can claim.</td>
 </tr>
 </tbody></table></div>
 <hr>
@@ -177,10 +210,11 @@ rejectTransfer()       → nonReentrant ✓
 <ol>
 <li><strong>Verify addresses</strong> against <a href="/docs/contracts">Contract Addresses</a>.</li>
 <li><strong>Check <code>supportedTokens(token)</code></strong> before sending (or handle <code>TokenNotSupported</code>).</li>
-<li><strong>Quote with <code>previewFee(sender, token, amount)</code></strong> and pass it as <code>maxFeeVek</code> for slippage safety.</li>
-<li><strong>Use <code>isClaimable(sender, recipient, code)</code></strong> before claiming to avoid reverts.</li>
+<li><strong>Always pass a real <code>maxFee</code></strong> — <code>previewFee(sender, token, amount)</code> or the 1% ceiling <code>amount * 1000 / 100000</code>. Never <code>0</code>.</li>
+<li><strong>Use <code>isReleasable(sender, recipient, code)</code></strong> before releasing to avoid reverts; use <code>releaseMany</code> for batches.</li>
+<li><strong>Handle <code>PayoutDeferred</code></strong> — surface credited balances (<code>withdrawable(beneficiary, token)</code>) and a <code>withdraw</code> action to your users.</li>
 <li><strong>Watch <code>Paused</code>/<code>Unpaused</code></strong> and halt new sends in your UI when paused.</li>
-<li>Prefer <code>permit</code> (VEK is ERC-2612) over unlimited approvals where possible.</li>
+<li>Prefer <code>sendWithPermit</code> (USDC and other ERC-2612 tokens) over unlimited approvals; approve exact amounts otherwise.</li>
 </ol>
 <hr>
 <h2 id="responsible-disclosure">Responsible Disclosure</h2>
@@ -203,12 +237,17 @@ rejectTransfer()       → nonReentrant ✓
 <tbody><tr>
 <td>OpenZeppelin Contracts</td>
 <td>5.x</td>
-<td><code>Ownable2Step</code>, <code>ReentrancyGuard</code>, <code>Pausable</code>, <code>SafeERC20</code>, <code>Math</code></td>
+<td><code>Ownable2Step</code>, <code>ReentrancyGuard</code>, <code>Pausable</code>, <code>EIP712</code>, <code>ECDSA</code>, <code>SafeERC20</code>, <code>IERC20Permit</code></td>
 </tr>
 <tr>
 <td>Chainlink <code>AggregatorV3Interface</code></td>
 <td>—</td>
-<td>USD price oracles</td>
+<td>USD price oracles (tiering)</td>
+</tr>
+<tr>
+<td>WETH9</td>
+<td><code>0xC02aaA39…6Cc2</code></td>
+<td>Native-ETH fallback delivery</td>
 </tr>
 <tr>
 <td>Gnosis Safe</td>

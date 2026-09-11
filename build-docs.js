@@ -31,9 +31,10 @@ const OUT = path.join(__dirname, "docs");
 // Sidebar order + per-page metadata. `slug` drives the clean URL (/docs/<slug>).
 const PAGES = [
   { file: "README.md",             slug: "",                   out: "index.html",             nav: "Overview",          desc: "Vektes protocol documentation — irrevocable settlement with dedup codes, scheduling, and recipient controls." },
-  { file: "quick-start.md",        slug: "quick-start",        out: "quick-start.html",        nav: "Quick Start",       desc: "Send your first Vektes transfer — approve, send (instant or scheduled), claim." },
-  { file: "protocol-reference.md", slug: "protocol-reference", out: "protocol-reference.html", nav: "Protocol Reference",desc: "Full function, event, and error reference for the deployed VektesProtocol contract." },
-  { file: "fee-model.md",          slug: "fee-model",          out: "fee-model.html",          nav: "Fee Model",         desc: "Monthly-volume fee tiers, the maxFeeVek cap, and the current fee-free launch state." },
+  { file: "quick-start.md",        slug: "quick-start",        out: "quick-start.html",        nav: "Quick Start",       desc: "Send your first Vektes v2 transfer — approve, send (instant or scheduled), release." },
+  { file: "protocol-reference.md", slug: "protocol-reference", out: "protocol-reference.html", nav: "Protocol Reference",desc: "Full function, event, and error reference for Vektes Protocol v2 — transfers, release/reject, claim-by-link, airdrops, recurring allowances." },
+  { file: "protocol-reference-v1.md", slug: "protocol-reference-v1", out: "protocol-reference-v1.html", nav: "Protocol Reference (v1, legacy)", desc: "Function reference for the legacy v1 VektesProtocol contract (still live for transfers scheduled on it)." },
+  { file: "fee-model.md",          slug: "fee-model",          out: "fee-model.html",          nav: "Fee Model",         desc: "In-kind monthly-volume fee tiers, the 1% ceiling and per-call maxFee, and the current fee-free launch state." },
   { file: "integration-guide.md",  slug: "integration-guide",  out: "integration-guide.html",  nav: "Integration Guide", desc: "Build a payment flow on Vektes — ABI, events, error handling, and webhooks." },
   { file: "contracts.md",          slug: "contracts",          out: "contracts.html",          nav: "Contracts",         desc: "Mainnet contract addresses, configuration, and supported tokens." },
   { file: "security.md",           slug: "security",           out: "security.html",           nav: "Security",          desc: "Audit, access control, reentrancy, pausability, and fund-safety guarantees." },

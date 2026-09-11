@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Protocol Reference — Vektes Docs</title>
-<meta name="description" content="Full function, event, and error reference for the deployed VektesProtocol contract." />
+<meta name="description" content="Full function, event, and error reference for Vektes Protocol v2 — transfers, release/reject, claim-by-link, airdrops, recurring allowances." />
 <meta name="theme-color" content="#0c8f6b" />
 <link rel="canonical" href="https://vektes.com/docs/protocol-reference" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
@@ -28,6 +28,7 @@
       <a href="/docs/">Overview</a>
       <a href="/docs/quick-start">Quick Start</a>
       <a href="/docs/protocol-reference" aria-current="page">Protocol Reference</a>
+      <a href="/docs/protocol-reference-v1">Protocol Reference (v1, legacy)</a>
       <a href="/docs/fee-model">Fee Model</a>
       <a href="/docs/integration-guide">Integration Guide</a>
       <a href="/docs/contracts">Contracts</a>
@@ -38,46 +39,21 @@
   </aside>
   <main class="doc-content">
 <h1 id="protocol-reference">Protocol Reference</h1>
+<p>Complete function reference for <strong>Vektes Protocol v2</strong> (<code>VektesProtocolV2</code>, immutable).</p>
+<p><strong>Contract:</strong> <code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code> (Ethereum mainnet) — <a href="https://etherscan.io/address/0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34#code">verified source</a>. CertiK-audited at tag <code>audit-2.6.0</code> (final report 2026-09-11, 0 Critical / 0 Major). The previous contract is documented in the <a href="/docs/protocol-reference-v1">v1 reference</a>.</p>
 <blockquote>
-<p><strong>Vektes Protocol v2 is live</strong> (2026-09-11) at <strong><code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code></strong>
-(<code>VektesProtocolV2</code>, CertiK-audited tag <code>audit-2.6.0</code>). <strong>This page documents v1</strong>, which stays live and
-immutable for transfers already scheduled on it. The v2 differences that matter to integrators:
-<code>claim()</code> is replaced by permissionless <strong><code>release(sender, recipient, txCode)</code></strong> (anyone may call it after
-the date; funds always go to the fixed recipient); <code>rejectTransfer()</code> is <strong><code>reject(sender, txCode)</code></strong> and
-works any time before release; the fee is taken <strong>in the transfer asset</strong>, so the last <code>send</code> argument is
-<strong><code>maxFee</code> in that asset</strong> (a strict cap — <code>0</code> means &quot;no fee accepted&quot;, not &quot;no cap&quot;); un-deliverable
-payouts are credited and pulled with <strong><code>withdraw(token, to)</code></strong>; plus new claim-by-link, airdrop-campaign and
-recurring-allowance flows. Until the v2 reference is published here, use the verified source on
-<a href="https://etherscan.io/address/0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34#code">Etherscan</a> and the
-<a href="https://github.com/bontidy/vektes-contracts">contracts repository</a>.</p>
-</blockquote>
-<p>Complete function reference for the <strong>v1</strong> Vektes smart contract (<code>VektesProtocol</code>, immutable, legacy).</p>
-<p><strong>Contract (v1):</strong> <code>0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7</code></p>
-<blockquote>
-<p><strong>Key model:</strong> a transfer is identified by the tuple <strong><code>(sender, recipient, txCode)</code></strong>. The on-chain key is <code>keccak256(abi.encodePacked(sender, recipient, txCode))</code>. A <code>txCode</code> is therefore unique <strong>per sender→recipient pair</strong>, and all lookups require the recipient as well as the sender.</p>
-<p><strong>Instant vs. scheduled:</strong> if <code>settlementDate &lt;= block.timestamp</code> (e.g. <code>0</code>), the transfer is <strong>instant</strong> — funds are delivered to the recipient inside the same transaction and <strong>no record is stored</strong> (only an <code>InstantTransfer</code> event is emitted). If <code>settlementDate</code> is in the future, the transfer is <strong>scheduled</strong> — funds are held until the recipient calls <code>claim()</code> (or the recipient <code>rejectTransfer()</code>s to refund the sender).</p>
+<p><strong>Key model:</strong> every record is identified by the tuple <strong><code>(sender, counterparty, txCode)</code></strong> — the on-chain key is <code>keccak256(abi.encodePacked(sender, counterparty, txCode))</code>. For a transfer the counterparty is the recipient; for claim-by-link it is the claim key&#39;s address; for a campaign the campaign key; for a recurring allowance the payee. All record types share one <code>usedCodes</code> namespace, so a <code>txCode</code> is unique <strong>per sender→counterparty pair</strong> across every flow.</p>
+<p><strong>Instant vs. scheduled:</strong> if <code>settlementDate &lt;= block.timestamp</code> (e.g. <code>0</code>), the transfer is <strong>instant</strong> — the net amount is delivered to the recipient inside the same transaction and <strong>no record is stored</strong> (only <code>InstantTransfer</code> is emitted). If <code>settlementDate</code> is in the future, the transfer is <strong>scheduled</strong> — the escrow is held until the date, after which <strong>anyone</strong> may <code>release()</code> it to the fixed recipient, and until release the recipient may <code>reject()</code> it.</p>
+<p><strong>Fees are in-kind:</strong> any protocol fee is taken from the asset being sent (the recipient receives <code>amount − fee</code>); nothing is ever charged in $VEK. Every fee-bearing call takes a <strong><code>maxFee</code></strong> cap in that asset, and the contract has an immutable ceiling <code>MAX_FEE_BPS = 1000</code> (1%). All tiers are <strong>0 bps today</strong>. See <a href="/docs/fee-model">Fee Model</a>.</p>
 </blockquote>
 <hr>
-<h2 id="write-functions">Write Functions</h2>
+<h2 id="write-functions-transfers">Write Functions — Transfers</h2>
 <h3 id="send"><code>send</code></h3>
-<p>Send an ERC-20 token transfer. Two overloads:</p>
-<pre><code class="language-solidity">function send(
-    address token,
-    address to,
-    uint256 amount,
-    bytes32 txCode,
-    uint256 settlementDate
-) external;
+<p>Send an ERC-20 transfer. Two overloads:</p>
+<pre><code class="language-solidity">function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate) external;
 
-// With a $VEK fee slippage cap:
-function send(
-    address token,
-    address to,
-    uint256 amount,
-    bytes32 txCode,
-    uint256 settlementDate,
-    uint256 maxFeeVek
-) external;
+// With a fee cap in the transfer asset:
+function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFee) external;
 </code></pre>
 <div class="table-wrap"><table>
 <thead>
@@ -90,17 +66,17 @@ function send(
 <tbody><tr>
 <td><code>token</code></td>
 <td><code>address</code></td>
-<td>ERC-20 token contract address (must be on the supported-token allowlist)</td>
+<td>ERC-20 on the supported-token allowlist</td>
 </tr>
 <tr>
 <td><code>to</code></td>
 <td><code>address</code></td>
-<td>Recipient address</td>
+<td>Recipient (fixed forever; cannot be the protocol itself)</td>
 </tr>
 <tr>
 <td><code>amount</code></td>
 <td><code>uint256</code></td>
-<td>Transfer amount (token&#39;s smallest unit). The recipient receives the <strong>full amount</strong> — the fee is charged separately in $VEK.</td>
+<td>Amount pulled from the sender (token&#39;s smallest unit). The recipient receives <code>amount − fee</code>.</td>
 </tr>
 <tr>
 <td><code>txCode</code></td>
@@ -110,107 +86,179 @@ function send(
 <tr>
 <td><code>settlementDate</code></td>
 <td><code>uint256</code></td>
-<td>Unix timestamp. <code>0</code> or any past/current time ⇒ instant delivery. A future time ⇒ held until then.</td>
+<td>Unix timestamp. <code>0</code> or any past/current time ⇒ instant. A future time ⇒ held until then.</td>
 </tr>
 <tr>
-<td><code>maxFeeVek</code></td>
+<td><code>maxFee</code></td>
 <td><code>uint256</code></td>
-<td><em>(6-arg overload)</em> Max $VEK fee the sender will pay. Reverts <code>FeeExceedsMax</code> if the computed fee exceeds it. <code>0</code> disables the cap.</td>
+<td><em>(6-arg overload)</em> Strict cap on the in-kind fee, in <code>token</code> units. Reverts <code>FeeExceedsMax(fee, maxFee)</code> if the computed fee exceeds it. <strong><code>0</code> means &quot;accept no fee&quot;</strong> (it is <em>not</em> &quot;no cap&quot;). The 5-arg overload applies no cap.</td>
 </tr>
 </tbody></table></div>
-<p><strong>Requirements:</strong></p>
-<ul>
-<li><code>token</code> is on the allowlist (<code>supportedTokens(token) == true</code>) and has a registered price feed</li>
-<li>Caller has approved the protocol for ≥ <code>amount</code> of <code>token</code> (and, if a fee applies, ≥ <code>feeVek</code> of VEK)</li>
-<li><code>txCode</code> not previously used for this <code>(sender, to)</code> pair</li>
-<li><code>to != address(0)</code>, <code>amount &gt; 0</code></li>
-<li>Not paused</li>
-</ul>
+<p><strong>Requirements:</strong> <code>supportedTokens(token)</code>; a registered, fresh price feed for <code>token</code> unless it is fee-exempt; caller approved ≥ <code>amount</code>; <code>txCode</code> unused for <code>(sender, to)</code>; <code>to != 0</code> and <code>to != address(this)</code>; <code>amount &gt; 0</code>; not paused.</p>
 <p><strong>Events:</strong> <code>InstantTransfer</code> (instant) <strong>or</strong> <code>TransferCreated</code> (scheduled).</p>
-<p><strong>Reverts:</strong> <code>TokenNotSupported</code>, <code>DuplicateTransactionCode</code>, <code>ZeroAddress</code>, <code>ZeroAmount</code>, <code>FeeExceedsMax</code>, <code>PriceFeedNotSet</code>, <code>StalePrice</code>, <code>InvalidPrice</code>, <code>FeeTokenNotSet</code>, <code>EnforcedPause</code>.</p>
+<p><strong>Reverts:</strong> <code>TokenNotSupported</code>, <code>DuplicateTransactionCode</code>, <code>ZeroAddress</code>, <code>InvalidRecipient</code>, <code>ZeroAmount</code>, <code>FeeExceedsMax</code>, <code>PriceFeedNotSet</code>, <code>StalePrice</code>, <code>InvalidPrice</code>, <code>EnforcedPause</code>.</p>
 <blockquote>
-<p>The contract credits the <strong>actual balance received</strong> (post-transfer), so transfers stay solvent — but fee-on-transfer / rebasing tokens are not on the allowlist by policy.</p>
+<p>The contract credits the <strong>actual balance received</strong> (balance delta), so accounting stays solvent — but fee-on-transfer / rebasing tokens are kept off the allowlist by policy.</p>
 </blockquote>
-<hr>
+<h3 id="sendwithpermit"><code>sendWithPermit</code></h3>
+<p>One-signature send for ERC-2612 tokens (e.g. USDC): the permit and the send happen in one transaction, no separate <code>approve</code>.</p>
+<pre><code class="language-solidity">function sendWithPermit(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate,
+                        uint256 maxFee, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+</code></pre>
+<p>The <code>permit</code> call is wrapped in <code>try/catch</code>, so a front-run of the permit cannot break the send (the <code>transferFrom</code> still succeeds from the resulting allowance). Same requirements, events and reverts as <code>send</code>.</p>
 <h3 id="sendnative"><code>sendNative</code></h3>
-<p>Send native ETH. Two overloads (with and without the <code>maxFeeVek</code> cap). The amount is <code>msg.value</code>.</p>
+<p>Send native ETH; the amount is <code>msg.value</code>.</p>
 <pre><code class="language-solidity">function sendNative(address to, bytes32 txCode, uint256 settlementDate) external payable;
-function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external payable;
+function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFee) external payable;
 </code></pre>
-<p><strong>Requirements:</strong> <code>msg.value &gt; 0</code>, <code>to != address(0)</code>, unused <code>txCode</code> for the pair, not paused. Native ETH does <strong>not</strong> need to be on the allowlist, but the ETH/USD price feed must be registered.</p>
-<p><strong>Events:</strong> <code>InstantTransfer</code> or <code>TransferCreated</code> with <code>token = address(0)</code>.</p>
+<p>Native ETH is not on the allowlist but must have an ETH/USD feed registered. <strong>Instant</strong> native sends push ETH directly and revert <code>NativeTransferFailed</code> if the recipient cannot receive ETH; <strong>scheduled</strong> native sends go through deliver-or-credit at release (see below), so a non-payable recipient receives WETH instead.</p>
 <hr>
-<h3 id="claim"><code>claim</code></h3>
-<p>Recipient pulls funds from a <strong>scheduled</strong> transfer after its settlement date.</p>
-<pre><code class="language-solidity">function claim(address sender, bytes32 txCode) external;
+<h2 id="write-functions-resolving-a-scheduled-transfer">Write Functions — Resolving a scheduled transfer</h2>
+<h3 id="release"><code>release</code></h3>
+<p>Push a settled transfer to its fixed recipient. <strong>Permissionless</strong> — anyone may call on/after the settlement date; the funds always go to the recipient chosen at send time, so a third party can only complete the intended payment.</p>
+<pre><code class="language-solidity">function release(address sender, address recipient, bytes32 txCode) external;
 </code></pre>
-<p>The caller is implicitly the recipient (the key is <code>keccak256(sender, msg.sender, txCode)</code>).</p>
-<p><strong>Requirements:</strong></p>
+<p><strong>Requirements:</strong> record exists; <code>block.timestamp &gt;= settlementDate</code>; not already released or rejected. <strong>Not pausable.</strong></p>
+<p><strong>Effects:</strong> marks <code>released</code>, accrues the fee, delivers <code>amount</code> via deliver-or-credit.</p>
+<p><strong>Events:</strong> <code>TransferReleased(transferKey, recipient, caller, token, amount, timestamp)</code>, plus <code>PayoutWrapped</code> or <code>PayoutDeferred</code> if the push could not be delivered directly.</p>
+<p><strong>Reverts:</strong> <code>TransferNotFound</code>, <code>SettlementDateNotReached</code>, <code>AlreadyReleased</code>, <code>AlreadyRejected</code>.</p>
+<h3 id="releasemany"><code>releaseMany</code></h3>
+<p>Release many due transfers in one transaction (keeper / platform batch).</p>
+<pre><code class="language-solidity">function releaseMany(address[] calldata senders, address[] calldata recipients, bytes32[] calldata txCodes) external;
+</code></pre>
+<p>Entries that don&#39;t exist, aren&#39;t due, or are already resolved are <strong>skipped</strong>, and an undeliverable payout is <strong>credited</strong> rather than reverting — one bad entry never fails the batch. Reverts only on <code>ArrayLengthMismatch</code>.</p>
+<h3 id="reject"><code>reject</code></h3>
+<p>The recipient declines a pending scheduled transfer; the <strong>full escrow (net + fee)</strong> is refunded to the original sender. Allowed <strong>any time before release</strong> — before or after the settlement date (after the date it races <code>release</code>; whichever lands first wins). Only the recipient may call; the sender can never cancel, reverse or redirect.</p>
+<pre><code class="language-solidity">function reject(address sender, bytes32 txCode) external;
+</code></pre>
+<p>The caller is implicitly the recipient (key = <code>keccak256(sender, msg.sender, txCode)</code>). Also reverses the transfer&#39;s contribution to the sender&#39;s monthly fee volume if still within the same period. <strong>Not pausable.</strong></p>
+<p><strong>Events:</strong> <code>TransferRejected</code>. <strong>Reverts:</strong> <code>TransferNotFound</code>, <code>NotRecipient</code>, <code>AlreadyReleased</code>, <code>AlreadyRejected</code>.</p>
+<h3 id="shortensettlementdate"><code>shortenSettlementDate</code></h3>
+<p>The <strong>sender</strong> may bring a scheduled transfer&#39;s date <strong>earlier</strong> (never later). This only accelerates payment to the same recipient, so sender-finality is unchanged. <code>newDate = 0</code> or a past time makes it immediately releasable; the recipient&#39;s reject option stays open until release.</p>
+<pre><code class="language-solidity">function shortenSettlementDate(address recipient, bytes32 txCode, uint256 newDate) external;
+</code></pre>
+<p><strong>Events:</strong> <code>SettlementDateShortened</code>. <strong>Reverts:</strong> <code>TransferNotFound</code>, <code>AlreadyReleased</code>, <code>AlreadyRejected</code>, <code>CannotExtendSettlement</code>.</p>
+<hr>
+<h2 id="deliver-or-credit-and-withdraw">Deliver-or-credit and <code>withdraw</code></h2>
+<p>Every outbound payout that resolves an escrow (<code>release</code>, <code>releaseMany</code>, <code>reject</code>, <code>reclaim</code>, <code>reclaimCampaign</code>) is attempted as a push and <strong>never reverts the caller if the push fails</strong>:</p>
 <ul>
-<li>The transfer exists (was scheduled — instant transfers are already delivered and have no record)</li>
-<li>Caller is the recipient</li>
-<li><code>block.timestamp &gt;= settlementDate</code></li>
-<li>Not already claimed or rejected</li>
+<li><strong>Native ETH</strong> that cannot be pushed (recipient contract without a payable <code>receive</code>) is <strong>wrapped to WETH</strong> (<code>0xC02aaA39…6Cc2</code>) and delivered as an ERC-20 — <code>PayoutWrapped(beneficiary, amount)</code>. No action needed by the recipient.</li>
+<li>An <strong>ERC-20</strong> the token refuses to deliver (e.g. a token that froze the address) is credited to <code>withdrawable[beneficiary][token]</code> — <code>PayoutDeferred(beneficiary, token, amount)</code>.</li>
 </ul>
-<p><strong>Events:</strong> <code>TransferClaimed</code>.</p>
-<p><strong>Reverts:</strong> <code>TransferNotFound</code>, <code>NotRecipient</code>, <code>SettlementDateNotReached</code>, <code>AlreadyClaimed</code>, <code>AlreadyCancelled</code>.</p>
+<h3 id="withdraw"><code>withdraw</code></h3>
+<p>Pull a credited amount to an address of your choosing (need not be the original destination).</p>
+<pre><code class="language-solidity">function withdraw(address token, address to) external;
+function withdrawable(address beneficiary, address token) external view returns (uint256);
+</code></pre>
+<p>Only the beneficiary can pull their credit. <strong>Not pausable.</strong> <strong>Events:</strong> <code>Withdrawn(beneficiary, token, to, amount)</code>. <strong>Reverts:</strong> <code>ZeroAddress</code>, <code>NothingToWithdraw</code>, <code>NativeTransferFailed</code>.</p>
 <blockquote>
-<p><code>claim</code> is <strong>not</strong> pausable — a pause never traps funds already locked in the contract.</p>
+<p>Integration note: a <strong>contract</strong> beneficiary must be able to hold WETH or call <code>withdraw</code>. This is the sender&#39;s / integrator&#39;s responsibility when choosing a destination.</p>
 </blockquote>
 <hr>
-<h3 id="rejecttransfer"><code>rejectTransfer</code></h3>
-<p>Recipient declines a scheduled transfer; the locked funds are refunded to the <strong>original sender</strong> (never to the recipient).</p>
-<pre><code class="language-solidity">function rejectTransfer(address sender, bytes32 txCode) external;
-</code></pre>
-<p><strong>Requirements:</strong> caller is the recipient; not already claimed or rejected. Can be called <strong>any time before claiming</strong> — before or after the settlement date.</p>
-<p><strong>Events:</strong> <code>TransferRejected</code>.</p>
-<p><strong>Reverts:</strong> <code>TransferNotFound</code>, <code>NotRecipient</code>, <code>AlreadyClaimed</code>, <code>AlreadyCancelled</code>.</p>
-<hr>
-<h3 id="batchclaim"><code>batchClaim</code></h3>
-<p>Claim multiple scheduled transfers in one transaction.</p>
-<pre><code class="language-solidity">function batchClaim(address[] calldata senders, bytes32[] calldata txCodes) external;
+<h2 id="write-functions-claim-by-link-no-recipient-address">Write Functions — Claim-by-link (no recipient address)</h2>
+<p>Lock a payment to a <strong>one-time claim key</strong> instead of an address. The key&#39;s private key is the shareable &quot;link&quot;; whoever holds it claims to any payout address of their choice, before <code>expiry</code>. If never claimed, the sender reclaims after <code>expiry</code>.</p>
+<pre><code class="language-solidity">function createClaimable(address token, uint256 amount, bytes32 txCode, address claimAddr, uint256 expiry, uint256 maxFee) external;
+function createClaimableNative(bytes32 txCode, address claimAddr, uint256 expiry, uint256 maxFee) external payable;
+function claimTo(address sender, address claimAddr, bytes32 txCode, address payoutTo, bytes calldata signature) external;
+function reclaim(address claimAddr, bytes32 txCode) external;
 </code></pre>
 <ul>
-<li><code>senders.length</code> must equal <code>txCodes.length</code> (else reverts <code>&quot;Array length mismatch&quot;</code>).</li>
-<li><strong>Non-claimable entries are skipped, not reverted.</strong> Any <code>(senders[i], txCodes[i])</code> that doesn&#39;t exist, isn&#39;t the caller&#39;s, hasn&#39;t settled, or is already claimed/rejected is silently skipped — the rest still process. (Contrast with <code>claim</code>, which reverts.)</li>
+<li><code>expiry</code> must be in the future. The fee (if any) is taken at creation from the escrow; <code>maxFee</code> caps it.</li>
+<li><strong><code>claimTo</code> is front-run-safe:</strong> <code>signature</code> is an EIP-712 signature by the claim key over <code>Claim(address sender, address claimAddr, bytes32 txCode, address payoutTo)</code> — domain <code>{ name: &quot;VektesProtocolV2&quot;, version: &quot;2&quot;, chainId, verifyingContract }</code>. Because <code>payoutTo</code> is inside the signed struct, a watcher who copies the signature from the mempool cannot redirect the funds. Anyone may submit it (the claimant&#39;s wallet pays gas). Reverts <code>ClaimWindowClosed</code> once <code>block.timestamp &gt;= expiry</code>, so claiming and reclaiming are mutually exclusive.</li>
+<li><code>reclaim</code> is sender-only (by key construction), works on/after <code>expiry</code>, refunds net + fee via deliver-or-credit.</li>
+<li><code>claimTo</code> and <code>reclaim</code> are <strong>not pausable</strong>.</li>
 </ul>
-<p><strong>Events:</strong> one <code>TransferClaimed</code> per successfully claimed transfer.</p>
+<p><strong>Events:</strong> <code>ClaimableCreated</code>, <code>ClaimableClaimed</code>, <code>ClaimableReclaimed</code>. <strong>Reverts:</strong> <code>ClaimableNotFound</code>, <code>AlreadyClaimed</code>, <code>AlreadyReclaimed</code>, <code>ClaimWindowClosed</code>, <code>ExpiryNotReached</code>, <code>InvalidSignature</code>, <code>InvalidExpiry</code>, <code>InvalidRecipient</code>, plus the send-path reverts.</p>
+<hr>
+<h2 id="write-functions-airdrop-campaigns-one-link-many-claims">Write Functions — Airdrop campaigns (one link, many claims)</h2>
+<p>Fund a pool under one shared <strong>campaign key</strong>; each payout address may claim a fixed <code>amountPerClaim</code> <strong>once</strong>, before <code>expiry</code>. ERC-20 only.</p>
+<pre><code class="language-solidity">function createCampaign(address token, uint256 amountPerClaim, uint256 poolAmount, address campaignKey, bytes32 txCode, uint256 expiry, uint256 maxFee) external;
+function topUpCampaign(address campaignKey, bytes32 txCode, uint256 addAmount, uint256 maxFee) external;
+function claimCampaign(address sender, address campaignKey, bytes32 txCode, address payoutTo, bytes calldata signature) external;
+function reclaimCampaign(address campaignKey, bytes32 txCode) external;
+</code></pre>
+<ul>
+<li>The fee (if any) is charged on the funded pool at creation and on each top-up; the net pool must cover at least one claim.</li>
+<li><code>claimCampaign</code> uses the same EIP-712 <code>Claim</code> struct as <code>claimTo</code> (signed by the campaign key with the claimant&#39;s <code>payoutTo</code>). One claim per <code>payoutTo</code> per campaign — this is a per-address guard, <strong>not</strong> sybil-proof.</li>
+<li><code>reclaimCampaign</code> returns the unclaimed remainder to the sender on/after <code>expiry</code> (deliver-or-credit) and closes the campaign.</li>
+</ul>
+<p><strong>Events:</strong> <code>CampaignCreated</code>, <code>CampaignToppedUp</code>, <code>CampaignClaimed</code>, <code>CampaignReclaimed</code>. <strong>Reverts:</strong> <code>CampaignNotFound</code>, <code>CampaignClosed</code>, <code>CampaignEmpty</code>, <code>AlreadyClaimedCampaign</code>, <code>InvalidCampaignParams</code>, <code>ClaimWindowClosed</code>, <code>ExpiryNotReached</code>, <code>InvalidSignature</code>.</p>
+<hr>
+<h2 id="write-functions-recurring-allowance-standing-order-direct-debit">Write Functions — Recurring allowance (standing order / direct debit)</h2>
+<p>A sender authorises a <strong>named recipient</strong> to pull a fixed amount each period from the sender&#39;s wallet. <strong>No funds are escrowed</strong> — each claim pulls from the sender&#39;s balance via their standing ERC-20 approval to the contract, so collection is best-effort, like a card charge. ERC-20 only.</p>
+<pre><code class="language-solidity">function createAllowance(address token, address recipient, uint256 amountPerPeriod, uint256 periodLength,
+                         uint256 startTime, uint256 endTime, uint256 maxArrears, bytes32 txCode) external;
+function claimAllowance(address sender, address recipient, bytes32 txCode, uint256 maxFee) external;   // recipient-only
+function cancelAllowance(address recipient, bytes32 txCode) external;                                  // sender-only
+function extendAllowance(address recipient, bytes32 txCode, uint256 newEndTime) external;              // sender-only
+</code></pre>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>startTime</code></td>
+<td>When the first period unlocks. <code>0</code> = now (first pull immediate); a future time = a delayed first charge (free trial); each next period unlocks <code>periodLength</code> later.</td>
+</tr>
+<tr>
+<td><code>endTime</code></td>
+<td><strong>Required</strong> hard end date (must be after start). No period accrues past it. The sender can push it out later with <code>extendAllowance</code> (renewal).</td>
+</tr>
+<tr>
+<td><code>maxArrears</code></td>
+<td>Max unclaimed periods claimable at once (≥ 1). Older unclaimed periods <strong>lapse</strong>, so a long-dormant order can never be drained in bulk.</td>
+</tr>
+</tbody></table></div>
+<p><code>claimAllowance</code> pays as many <strong>whole</strong> due periods as the sender can currently cover (balance ∩ approval); any shortfall is simply not collected and can be retried next cycle. <code>maxFee</code> caps the in-kind fee on the pulled amount. <code>cancelAllowance</code> ends the order immediately and <strong>forfeits all unclaimed periods</strong> (the payment is treated as an advance). <code>extendAllowance</code> is extend-only.</p>
+<p><strong>Events:</strong> <code>AllowanceCreated</code>, <code>AllowanceClaimed</code>, <code>AllowanceCancelled</code>, <code>AllowanceExtended</code>. <strong>Reverts:</strong> <code>AllowanceNotFound</code>, <code>NotRecipient</code>, <code>NothingDue</code>, <code>FunderUnfunded</code>, <code>AllowanceEnded</code>, <code>InvalidPeriod</code>, <code>InvalidMaxArrears</code>, <code>InvalidExpiry</code>.</p>
 <hr>
 <h2 id="view-functions">View Functions</h2>
 <h3 id="gettransfer"><code>getTransfer</code></h3>
-<pre><code class="language-solidity">function getTransfer(address sender, address recipient, bytes32 txCode)
-    external view returns (Transfer memory);
-</code></pre>
-<p>Returns the stored <code>Transfer</code> for a <strong>scheduled</strong> transfer. For instant transfers (or unknown keys) all fields are zero — instant transfers are not stored; track them via the <code>InstantTransfer</code> event.</p>
-<pre><code class="language-solidity">struct Transfer {
-    address token;          // ERC-20 address (address(0) = native ETH)
-    address sender;         // original sender
-    address recipient;      // designated recipient
-    uint256 amount;         // amount owed to the recipient (delivered in full)
-    uint256 fee;            // protocol fee charged, denominated in $VEK
-    uint256 settlementDate; // unix timestamp claim becomes available
-    uint256 createdAt;      // block timestamp of creation
-    bytes32 txCode;         // user-provided code
-    bool claimed;           // recipient has claimed
-    bool cancelled;         // recipient rejected (funds refunded to sender)
+<pre><code class="language-solidity">function getTransfer(address sender, address recipient, bytes32 txCode) external view returns (Transfer memory);
+
+struct Transfer {
+    address token;          // ERC-20 (address(0) = native ETH)
+    address sender;
+    address recipient;      // fixed at send time
+    uint256 amount;         // NET owed to the recipient (fee already deducted)
+    uint256 fee;            // in-kind fee held with the escrow (refunded on reject, accrued on release)
+    uint256 settlementDate; // on/after this, anyone may release()
+    uint256 createdAt;
+    bytes32 txCode;
+    bool released;
+    bool rejected;
+    uint256 usdVolume;      // USD-6 volume this transfer added to the sender&#39;s monthly tally
+    uint256 volumePeriod;   // the 30-day period it was counted in
 }
 </code></pre>
-<h3 id="isclaimable"><code>isClaimable</code></h3>
-<pre><code class="language-solidity">function isClaimable(address sender, address recipient, bytes32 txCode) external view returns (bool);
+<p>For instant transfers (or unknown keys) all fields are zero — instant transfers are not stored; track them via <code>InstantTransfer</code>.</p>
+<h3 id="isreleasable"><code>isReleasable</code></h3>
+<pre><code class="language-solidity">function isReleasable(address sender, address recipient, bytes32 txCode) external view returns (bool);
 </code></pre>
-<p><code>true</code> when the (scheduled) transfer exists, is not claimed, not cancelled, and <code>block.timestamp &gt;= settlementDate</code>.</p>
+<p><code>true</code> when the scheduled transfer exists, is unresolved, and <code>block.timestamp &gt;= settlementDate</code>.</p>
 <h3 id="iscodeused"><code>isCodeUsed</code></h3>
 <pre><code class="language-solidity">function isCodeUsed(address sender, address recipient, bytes32 txCode) external view returns (bool);
 </code></pre>
-<p>Whether a code has already been used for a <code>(sender, recipient)</code> pair. Useful to pre-validate before sending.</p>
+<p>Whether a code has been used for a <code>(sender, counterparty)</code> pair (any flow).</p>
 <h3 id="previewfee"><code>previewFee</code></h3>
-<pre><code class="language-solidity">function previewFee(address sender, address token, uint256 amount) external view returns (uint256 feeInVek);
+<pre><code class="language-solidity">function previewFee(address sender, address token, uint256 amount) external view returns (uint256 fee);
 </code></pre>
-<p>The protocol fee (in $VEK base units) that <code>sender</code> would pay to transfer <code>amount</code> of <code>token</code>. It accounts for the sender&#39;s current monthly volume tier and equals the fee actually charged — so it&#39;s safe to pass as <code>maxFeeVek</code>. Returns <code>0</code> on the free tier (which is every tier today). See <a href="/docs/fee-model">Fee Model</a>.</p>
+<p>The in-kind fee, <strong>in <code>token</code> units</strong>, that <code>sender</code> would pay to move <code>amount</code> right now (their monthly tier, including this transfer). It equals the fee actually charged, so it is safe to pass as <code>maxFee</code>. Returns <code>0</code> for fee-exempt tokens and while all tiers are 0.</p>
 <h3 id="getcurrenttier"><code>getCurrentTier</code></h3>
 <pre><code class="language-solidity">function getCurrentTier(address sender) external view returns (uint256 tierIndex, uint256 feeBps);
 </code></pre>
-<p>The fee tier that currently applies to <code>sender</code>, based on their <strong>monthly (rolling 30-day) volume</strong>. <code>feeBps</code> is in units of 0.001% (e.g. <code>5</code> = 0.005%). Note the tier depends on the <em>sender&#39;s accumulated volume</em>, not the size of any single transfer.</p>
+<p><code>feeBps</code> is in units of 0.001% (<code>5</code> = 0.005%), based on the sender&#39;s rolling 30-day USD volume.</p>
+<h3 id="claim-by-link-campaign-and-allowance-views">Claim-by-link, campaign and allowance views</h3>
+<pre><code class="language-solidity">function getClaimable(address sender, address claimAddr, bytes32 txCode) external view returns (Claimable memory);
+function getCampaign(address sender, address campaignKey, bytes32 txCode) external view returns (Campaign memory);
+function hasClaimedCampaign(address sender, address campaignKey, bytes32 txCode, address who) external view returns (bool);
+function getAllowance(address sender, address recipient, bytes32 txCode) external view returns (Allowance memory);
+function previewAllowanceClaim(address sender, address recipient, bytes32 txCode) external view returns (uint256 periodsDue, uint256 grossAmount);
+</code></pre>
+<p><code>previewAllowanceClaim</code> returns the <em>entitlement</em> only — it does not check whether the sender currently holds the balance/approval to cover it.</p>
 <h3 id="public-getters">Public getters</h3>
 <div class="table-wrap"><table>
 <thead>
@@ -220,40 +268,52 @@ function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 
 </tr>
 </thead>
 <tbody><tr>
-<td><code>transfers(bytes32 key)</code></td>
-<td>The raw <code>Transfer</code> tuple by its key</td>
+<td><code>transfers(bytes32)</code> / <code>claimables(bytes32)</code> / <code>campaigns(bytes32)</code> / <code>allowances(bytes32)</code></td>
+<td>Raw records by key</td>
 </tr>
 <tr>
-<td><code>usedCodes(bytes32 key)</code></td>
+<td><code>campaignClaimed(bytes32 key, address who)</code></td>
+<td>Per-address campaign claim flag</td>
+</tr>
+<tr>
+<td><code>usedCodes(bytes32)</code></td>
 <td>Whether a code-key is used</td>
 </tr>
 <tr>
+<td><code>withdrawable(address beneficiary, address token)</code></td>
+<td>Credited, pull-able balance</td>
+</tr>
+<tr>
 <td><code>monthlyVolume(address)</code> / <code>volumeResetMonth(address)</code></td>
-<td>Sender&#39;s tracked USD-6 volume and its 30-day epoch</td>
+<td>Sender&#39;s USD-6 volume and its 30-day epoch</td>
 </tr>
 <tr>
 <td><code>feeTiers(uint256 i)</code></td>
-<td><code>(threshold, feeBps)</code> for tier <code>i</code></td>
+<td><code>(threshold, feeBps)</code> for tier <code>i</code> (4 tiers)</td>
 </tr>
 <tr>
-<td><code>treasury()</code> / <code>feeToken()</code> / <code>burnPercentage()</code></td>
-<td>Fee routing config</td>
+<td><code>MAX_FEE_BPS()</code></td>
+<td><code>1000</code> — immutable 1% fee ceiling</td>
 </tr>
 <tr>
-<td><code>BURN_ADDRESS()</code></td>
-<td><code>0x…dEaD</code></td>
+<td><code>accruedFees(address token)</code></td>
+<td>In-kind fees earned and not yet swept to the treasury</td>
 </tr>
 <tr>
-<td><code>supportedTokens(address)</code></td>
-<td>Allowlist membership</td>
+<td><code>treasury()</code> / <code>WETH()</code></td>
+<td>Fee destination; canonical WETH used by the native fallback</td>
+</tr>
+<tr>
+<td><code>supportedTokens(address)</code> / <code>feeExempt(address)</code></td>
+<td>Allowlist membership; fee-exempt flag (e.g. $VEK)</td>
 </tr>
 <tr>
 <td><code>priceFeeds(address)</code> / <code>stalePriceThreshold(address)</code></td>
 <td>Chainlink feed + max age per token</td>
 </tr>
 <tr>
-<td><code>totalTransfers()</code> / <code>totalFeesCollected()</code></td>
-<td>Lifetime counters</td>
+<td><code>totalTransfers()</code></td>
+<td>Lifetime counter across all record types</td>
 </tr>
 <tr>
 <td><code>owner()</code> / <code>pendingOwner()</code> / <code>paused()</code></td>
@@ -262,38 +322,30 @@ function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 
 </tbody></table></div>
 <hr>
 <h2 id="events">Events</h2>
-<pre><code class="language-solidity">event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient,
-                      address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt);
-event InstantTransfer(address indexed sender, address indexed recipient,
-                      address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 timestamp);
-event TransferClaimed(bytes32 indexed transferKey, address indexed recipient, address token, uint256 amount, uint256 claimedAt);
+<pre><code class="language-solidity">event InstantTransfer(address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 timestamp);
+event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt);
+event TransferReleased(bytes32 indexed transferKey, address indexed recipient, address indexed caller, address token, uint256 amount, uint256 timestamp);
 event TransferRejected(bytes32 indexed transferKey, address indexed recipient, address indexed sender, address token, uint256 amount, uint256 rejectedAt);
+event SettlementDateShortened(bytes32 indexed transferKey, address indexed sender, uint256 oldSettlementDate, uint256 newSettlementDate);
+event PayoutWrapped(address indexed beneficiary, uint256 amount);                                   // ETH delivered as WETH
+event PayoutDeferred(address indexed beneficiary, address indexed token, uint256 amount);           // credited for withdraw()
+event Withdrawn(address indexed beneficiary, address indexed token, address to, uint256 amount);
+
+event ClaimableCreated(bytes32 indexed key, address indexed sender, address indexed claimAddr, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 expiry, uint256 createdAt);
+event ClaimableClaimed(bytes32 indexed key, address indexed claimAddr, address indexed payoutTo, address caller, address token, uint256 amount, uint256 timestamp);
+event ClaimableReclaimed(bytes32 indexed key, address indexed sender, address token, uint256 amount, uint256 timestamp);
+
+event CampaignCreated(bytes32 indexed key, address indexed sender, address indexed campaignKey, address token, uint256 amountPerClaim, uint256 pool, bytes32 txCode, uint256 expiry);
+event CampaignToppedUp(bytes32 indexed key, address indexed sender, uint256 added, uint256 remaining);
+event CampaignClaimed(bytes32 indexed key, address indexed campaignKey, address indexed payoutTo, address token, uint256 amount, uint256 remaining);
+event CampaignReclaimed(bytes32 indexed key, address indexed sender, address token, uint256 amount);
+
+event AllowanceCreated(bytes32 indexed key, address indexed sender, address indexed recipient, address token, uint256 amountPerPeriod, uint256 periodLength, uint256 startTime, uint256 endTime, uint256 maxArrears, bytes32 txCode);
+event AllowanceClaimed(bytes32 indexed key, address indexed recipient, address token, uint256 periodsPaid, uint256 amountNet, uint256 fee, uint256 claimedPeriods, uint256 timestamp);
+event AllowanceCancelled(bytes32 indexed key, address indexed sender, address indexed recipient, uint256 endTime);
+event AllowanceExtended(bytes32 indexed key, address indexed sender, address indexed recipient, uint256 oldEndTime, uint256 newEndTime);
 </code></pre>
-<div class="table-wrap"><table>
-<thead>
-<tr>
-<th>Event</th>
-<th>Emitted When</th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>InstantTransfer</code></td>
-<td>An instant transfer (<code>settlementDate &lt;= now</code>) is delivered</td>
-</tr>
-<tr>
-<td><code>TransferCreated</code></td>
-<td>A scheduled transfer (future <code>settlementDate</code>) is locked</td>
-</tr>
-<tr>
-<td><code>TransferClaimed</code></td>
-<td>A recipient claims a scheduled transfer</td>
-</tr>
-<tr>
-<td><code>TransferRejected</code></td>
-<td>A recipient rejects and the sender is refunded</td>
-</tr>
-</tbody></table></div>
-<p>Admin events: <code>FeeTierUpdated</code>, <code>TreasuryUpdated</code>, <code>BurnPercentageUpdated</code>, <code>TokenSupportUpdated</code>, <code>PriceFeedUpdated</code>, <code>StalePriceThresholdUpdated</code>, <code>FeeTokenUpdated</code>, plus <code>OwnershipTransferStarted</code> / <code>OwnershipTransferred</code> (Ownable2Step) and <code>Paused</code> / <code>Unpaused</code>.</p>
+<p><code>amount</code> in <code>InstantTransfer</code> / <code>TransferCreated</code> / <code>TransferReleased</code> is the <strong>net</strong> delivered to the recipient. Admin events: <code>FeesWithdrawn</code>, <code>FeeExemptUpdated</code>, <code>FeeTierUpdated</code>, <code>TreasuryUpdated</code>, <code>TokenSupportUpdated</code>, <code>PriceFeedUpdated</code>, <code>StalePriceThresholdUpdated</code>, plus <code>OwnershipTransferStarted</code> / <code>OwnershipTransferred</code> and <code>Paused</code> / <code>Unpaused</code>.</p>
 <hr>
 <h2 id="error-reference">Error Reference</h2>
 <div class="table-wrap"><table>
@@ -304,75 +356,104 @@ event TransferRejected(bytes32 indexed transferKey, address indexed recipient, a
 </tr>
 </thead>
 <tbody><tr>
-<td><code>DuplicateTransactionCode(bytes32 txCode, address recipient)</code></td>
-<td>Code already used for this sender→recipient pair</td>
+<td><code>DuplicateTransactionCode(bytes32 txCode, address counterparty)</code></td>
+<td>Code already used for this sender→counterparty pair</td>
 </tr>
 <tr>
-<td><code>ZeroAddress()</code></td>
-<td>Recipient is the zero address</td>
+<td><code>ZeroAddress()</code> / <code>ZeroAmount()</code></td>
+<td>Zero destination / zero amount or <code>msg.value</code></td>
 </tr>
 <tr>
-<td><code>ZeroAmount()</code></td>
-<td>Amount / <code>msg.value</code> is 0</td>
+<td><code>InvalidRecipient()</code></td>
+<td>The protocol contract itself was given as recipient or payout address</td>
 </tr>
 <tr>
 <td><code>TokenNotSupported(address token)</code></td>
-<td>Token is not on the allowlist</td>
+<td>Token not on the allowlist</td>
 </tr>
 <tr>
-<td><code>NotRecipient(address caller, address expectedRecipient)</code></td>
-<td>Caller is not the transfer&#39;s recipient</td>
-</tr>
-<tr>
-<td><code>TransferNotFound(bytes32 transferKey)</code></td>
+<td><code>TransferNotFound(bytes32 key)</code></td>
 <td>No scheduled transfer for this key</td>
 </tr>
 <tr>
-<td><code>SettlementDateNotReached(uint256 settlementDate, uint256 currentTime)</code></td>
-<td>Claimed before settlement</td>
+<td><code>NotRecipient(address caller, address expected)</code></td>
+<td>Caller is not the recipient (reject / claimAllowance)</td>
 </tr>
 <tr>
-<td><code>AlreadyClaimed(bytes32 transferKey)</code></td>
-<td>Transfer already claimed</td>
+<td><code>SettlementDateNotReached(uint256 date, uint256 now)</code></td>
+<td>Release attempted before the date</td>
 </tr>
 <tr>
-<td><code>AlreadyCancelled(bytes32 transferKey)</code></td>
-<td>Transfer already rejected</td>
+<td><code>AlreadyReleased(bytes32 key)</code> / <code>AlreadyRejected(bytes32 key)</code></td>
+<td>Transfer already resolved</td>
 </tr>
 <tr>
-<td><code>FeeExceedsMax(uint256 feeVek, uint256 maxFeeVek)</code></td>
-<td>Computed $VEK fee exceeded the sender&#39;s cap</td>
+<td><code>CannotExtendSettlement(uint256 current, uint256 requested)</code></td>
+<td><code>shortenSettlementDate</code> with a later-or-equal date</td>
 </tr>
 <tr>
-<td><code>PriceFeedNotSet(address token)</code></td>
-<td>No Chainlink feed registered for the token / fee token</td>
+<td><code>FeeExceedsMax(uint256 fee, uint256 maxFee)</code></td>
+<td>Computed in-kind fee exceeds the caller&#39;s cap</td>
 </tr>
 <tr>
-<td><code>InvalidPrice(address token)</code></td>
-<td>Oracle returned a non-positive price</td>
+<td><code>FeeExceedsCap(uint256 feeBps, uint256 maxBps)</code></td>
+<td>Owner tried to set a tier above <code>MAX_FEE_BPS</code></td>
 </tr>
 <tr>
-<td><code>StalePrice(address token)</code></td>
-<td>Oracle answer older than the token&#39;s staleness threshold</td>
+<td><code>PriceFeedNotSet</code> / <code>InvalidPrice</code> / <code>StalePrice(address token)</code></td>
+<td>Oracle unset, non-positive, or older than the token&#39;s threshold</td>
 </tr>
 <tr>
-<td><code>FeeTokenNotSet()</code></td>
-<td>Fee token unconfigured (only reachable if a fee is due)</td>
+<td><code>NothingToWithdraw()</code></td>
+<td>No credited balance for the caller in that token</td>
 </tr>
 <tr>
-<td><code>InsufficientNativeValue(uint256 sent, uint256 required)</code></td>
-<td>Native value below what&#39;s required</td>
+<td><code>NativeTransferFailed()</code></td>
+<td>A direct ETH push failed (instant native send, <code>claimTo</code> to a non-payable address, or <code>withdraw</code> to one)</td>
+</tr>
+<tr>
+<td><code>ClaimableNotFound</code> / <code>AlreadyClaimed</code> / <code>AlreadyReclaimed(bytes32 key)</code></td>
+<td>Claim-by-link state errors</td>
+</tr>
+<tr>
+<td><code>ClaimWindowClosed(uint256 expiry, uint256 now)</code></td>
+<td>Claim attempted at/after expiry (claim-by-link or campaign)</td>
+</tr>
+<tr>
+<td><code>ExpiryNotReached(uint256 expiry, uint256 now)</code></td>
+<td>Reclaim attempted before expiry</td>
+</tr>
+<tr>
+<td><code>InvalidSignature()</code> / <code>InvalidExpiry()</code></td>
+<td>Bad EIP-712 signature; expiry not in the future / end not after start</td>
+</tr>
+<tr>
+<td><code>CampaignNotFound</code> / <code>CampaignClosed</code> / <code>CampaignEmpty(bytes32 key)</code> / <code>AlreadyClaimedCampaign(bytes32 key, address payoutTo)</code> / <code>InvalidCampaignParams()</code></td>
+<td>Campaign state errors</td>
+</tr>
+<tr>
+<td><code>AllowanceNotFound(bytes32 key)</code> / <code>NothingDue</code> / <code>FunderUnfunded</code> / <code>AllowanceEnded(bytes32 key)</code> / <code>InvalidPeriod()</code> / <code>InvalidMaxArrears()</code></td>
+<td>Recurring-allowance state errors</td>
+</tr>
+<tr>
+<td><code>ExceedsAccruedFees(address token, uint256 requested, uint256 available)</code></td>
+<td>Owner sweep above accrued fees</td>
+</tr>
+<tr>
+<td><code>ArrayLengthMismatch()</code> / <code>InvalidTierIndex()</code> / <code>ZeroThreshold()</code> / <code>NoPriceFeed()</code> / <code>Unauthorized()</code></td>
+<td>Batch / admin argument errors; <code>_payout</code> called by anyone but the contract</td>
 </tr>
 <tr>
 <td><code>EnforcedPause()</code></td>
-<td>New sends attempted while paused</td>
+<td>Creation path attempted while paused</td>
 </tr>
 </tbody></table></div>
 <p>Standard OpenZeppelin errors also apply: <code>OwnableUnauthorizedAccount</code>, <code>OwnableInvalidOwner</code>, <code>ReentrancyGuardReentrantCall</code>, <code>SafeERC20FailedOperation</code>.</p>
 <hr>
 <h2 id="admin-functions-owner-only">Admin Functions (owner-only)</h2>
-<p>The owner is the Gnosis Safe (Ownable2Step). See <a href="/docs/security">Security</a> for what the owner can and cannot do.</p>
-<p><code>pause()</code> · <code>unpause()</code> · <code>setTreasury(address)</code> · <code>setBurnPercentage(uint256)</code> · <code>setTokenSupport(address, bool)</code> · <code>setPriceFeed(address token, address feed, uint256 threshold)</code> · <code>setStalePriceThreshold(address, uint256)</code> · <code>setFeeToken(address)</code> · <code>updateFeeTier(uint256 index, uint256 threshold, uint256 feeBps)</code> · <code>transferOwnership(address)</code> / <code>acceptOwnership()</code></p>
+<p>The owner is the 2-of-3 Gnosis Safe (<code>Ownable2Step</code>). See <a href="/docs/security">Security</a> for the owner&#39;s exact powers and limits.</p>
+<p><code>withdrawFees(address token, uint256 amount)</code> — sweeps <strong>accrued in-kind fees only</strong> to <code>treasury()</code>; can never touch escrowed user funds · <code>setFeeExempt(address, bool)</code> · <code>updateFeeTier(uint256 index, uint256 threshold, uint256 feeBps)</code> (bounded by <code>MAX_FEE_BPS</code>) · <code>setTreasury(address)</code> · <code>setTokenSupport(address, bool)</code> · <code>setPriceFeed(address token, address feed, uint256 threshold)</code> · <code>setStalePriceThreshold(address, uint256)</code> · <code>pause()</code> / <code>unpause()</code> · <code>transferOwnership(address)</code> / <code>acceptOwnership()</code>.</p>
+<p><strong>Pause scope:</strong> only <em>creation</em> paths pause — <code>send</code>, <code>sendWithPermit</code>, <code>sendNative</code>, <code>createClaimable</code>, <code>createClaimableNative</code>, <code>createCampaign</code>, <code>topUpCampaign</code>, <code>createAllowance</code>. <code>release</code>, <code>releaseMany</code>, <code>reject</code>, <code>shortenSettlementDate</code>, <code>withdraw</code>, <code>claimTo</code>, <code>reclaim</code>, <code>claimCampaign</code>, <code>reclaimCampaign</code>, <code>claimAllowance</code>, <code>cancelAllowance</code> and <code>extendAllowance</code> <strong>never pause</strong> — funds already committed can always exit.</p>
 
   </main>
 </div>

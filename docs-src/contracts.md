@@ -81,8 +81,9 @@ Transfers use a **curated allowlist** — only tokens the owner has enabled via 
 
 | Token | Status | Notes |
 |-------|--------|-------|
-| USDC (`0xA0b8…eB48`) | ✅ Supported | Chainlink USDC/USD feed registered |
-| USDT (`0xdAC1…1ec7`) | ✅ Supported | Chainlink USDT/USD feed registered |
+| USDC (`0xA0b8…eB48`) | ✅ Supported (v1 + v2) | Chainlink USDC/USD feed registered |
+| USDT (`0xdAC1…1ec7`) | ✅ Supported (v1 + v2) | Chainlink USDT/USD feed registered |
+| $VEK (`0xb4fa…d215`) | ✅ Supported on v2, **fee-exempt** | No oracle needed; VEK-to-VEK transfers are always free |
 | Native ETH | ✅ Always available via `sendNative()` | Not in the allowlist (native is exempt), but priced by the ETH/USD feed |
 | Other ERC-20s | ❌ Not enabled | Owner may add standard ERC-20s over time |
 

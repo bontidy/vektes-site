@@ -186,18 +186,21 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
 <script>
 (function(){
   "use strict";
-  const PROTOCOL="0x7Bc4bA8b1595E86D8A3A10856D786980Eda454a8";
-  const TUSDC="0x41Db6B337619Ec18baf593d65E4C5C28920d589E";
+  // Sepolia deployment of the CertiK-audited code (tag audit-2.6.0), redeployed 2026-09-11.
+  const PROTOCOL="0x9322b811895Ed1384C1381f830c67Faa659c863A";
+  const TUSDC="0xC1B62247Bb45cBE871318572db795ef88E0876F1";
   const CHAIN_ID=11155111n, SEPOLIA_HEX="0xaa36a7", SCAN="https://sepolia.etherscan.io";
+  // v2 fee-bearing calls take a strict in-kind `maxFee` (0 = "accept no fee"). Pass the protocol's own 1% ceiling.
+  const maxFeeFor=(amount)=>amount*1000n/100000n;
   const PROTO_ABI=[
     "function createAllowance(address token,address recipient,uint256 amountPerPeriod,uint256 periodLength,uint256 startTime,uint256 endTime,uint256 maxArrears,bytes32 txCode)",
-    "function claimAllowance(address sender,address recipient,bytes32 txCode)",
+    "function claimAllowance(address sender,address recipient,bytes32 txCode,uint256 maxFee)",
     "function cancelAllowance(address recipient,bytes32 txCode)",
     "function extendAllowance(address recipient,bytes32 txCode,uint256 newEndTime)",
     "function previewAllowanceClaim(address sender,address recipient,bytes32 txCode) view returns (uint256 periodsDue,uint256 grossAmount)",
-    "function createClaimable(address token,uint256 amount,bytes32 txCode,address claimAddr,uint256 expiry)",
+    "function createClaimable(address token,uint256 amount,bytes32 txCode,address claimAddr,uint256 expiry,uint256 maxFee)",
     "function claimTo(address sender,address claimAddr,bytes32 txCode,address payoutTo,bytes signature)",
-    "error AllowanceNotFound(bytes32)","error NothingDue(bytes32)","error FunderUnfunded(bytes32)","error AllowanceEnded(bytes32)","error NotRecipient(address,address)","error InvalidExpiry()","error InvalidMaxArrears()","error InvalidPeriod()","error ZeroAmount()","error ZeroAddress()","error DuplicateTransactionCode(bytes32,address)","error TokenNotSupported(address)","error ClaimableNotFound(bytes32)","error AlreadyClaimed(bytes32)","error AlreadyReclaimed(bytes32)","error InvalidSignature()","error ExpiryNotReached(uint256,uint256)"
+    "error AllowanceNotFound(bytes32)","error NothingDue(bytes32)","error FunderUnfunded(bytes32)","error AllowanceEnded(bytes32)","error NotRecipient(address,address)","error InvalidExpiry()","error InvalidMaxArrears()","error InvalidPeriod()","error ZeroAmount()","error ZeroAddress()","error DuplicateTransactionCode(bytes32,address)","error TokenNotSupported(address)","error ClaimableNotFound(bytes32)","error AlreadyClaimed(bytes32)","error AlreadyReclaimed(bytes32)","error InvalidSignature()","error ExpiryNotReached(uint256,uint256)","error ClaimWindowClosed(uint256,uint256)","error FeeExceedsMax(uint256,uint256)","error InvalidRecipient()"
   ];
   const ERC20_ABI=[
     "function mint(address to,uint256 amount)",
@@ -227,7 +230,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
 
   function log(msg,cls){ const l=$("log"); if(l.querySelector(".muted"))l.innerHTML=""; const d=document.createElement("div"); d.className=cls||""; d.innerHTML=msg; l.appendChild(d); l.scrollTop=l.scrollHeight; }
   const tx=h=>`<a href="${SCAN}/tx/${h}" target="_blank" rel="noopener">${h.slice(0,10)}…</a>`;
-  const ERRMAP={ AllowanceEnded:"this plan is cancelled/ended — no further actions", NothingDue:"nothing due yet — wait for the next cycle (use Preview due)", FunderUnfunded:"the customer's wallet can't cover a cycle right now (fund it, then retry)", AllowanceNotFound:"plan not found (cancelled, or created on another network/browser)", NotRecipient:"only the merchant (recipient) can charge this plan", DuplicateTransactionCode:"that plan code is already used — create a fresh plan", InvalidExpiry:"the end date must be after the start", AlreadyClaimed:"this link was already claimed", AlreadyReclaimed:"this link was already reclaimed", InvalidSignature:"invalid claim signature", ExpiryNotReached:"the claim link hasn't expired yet" };
+  const ERRMAP={ AllowanceEnded:"this plan is cancelled/ended — no further actions", NothingDue:"nothing due yet — wait for the next cycle (use Preview due)", FunderUnfunded:"the customer's wallet can't cover a cycle right now (fund it, then retry)", AllowanceNotFound:"plan not found (cancelled, or created on another network/browser)", NotRecipient:"only the merchant (recipient) can charge this plan", DuplicateTransactionCode:"that plan code is already used — create a fresh plan", InvalidExpiry:"the end date must be after the start", AlreadyClaimed:"this link was already claimed", AlreadyReclaimed:"this link was already reclaimed", InvalidSignature:"invalid claim signature", ExpiryNotReached:"the claim link hasn't expired yet", ClaimWindowClosed:"this link has expired — only the sender can reclaim it now", FeeExceedsMax:"the fee moved above the cap — retry" };
   function friendlyErr(e){ const n=e&&e.revert&&e.revert.name; if(n) return ERRMAP[n]||n; return (e&&(e.shortMessage||e.reason||(e.info&&e.info.error&&e.info.error.message)||e.message))||String(e); }
   async function run(label,fn){ try{ await fn(); }catch(e){ log(label+" failed: "+friendlyErr(e),"err"); } }
   function showGas(){ $("gasAddr").value=me||""; $("gasModal").style.display="flex"; }
@@ -310,7 +313,7 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     const p=myPlans()[i]; if(!p)return;
     if(act!=="preview" && !(await ensureGas())) return;
     if(act==="preview"){ const [due,gross]=await proto.previewAllowanceClaim(p.sender,p.recipient,p.txCode); return log(`Plan due: <b>${due}</b> cycle(s) = <b>${ethers.formatUnits(gross,6)}</b> tUSDC`); }
-    if(act==="charge"){ if(p.recipient.toLowerCase()!==me.toLowerCase()) log("Note: only the merchant address can charge — connect that wallet.","err"); const t=await proto.claimAllowance(p.sender,p.recipient,p.txCode); log("Charging… "+tx(t.hash)); await t.wait(); log("Charged ✓","ok"); return refresh(); }
+    if(act==="charge"){ if(p.recipient.toLowerCase()!==me.toLowerCase()) log("Note: only the merchant address can charge — connect that wallet.","err"); const [,gross]=await proto.previewAllowanceClaim(p.sender,p.recipient,p.txCode); const t=await proto.claimAllowance(p.sender,p.recipient,p.txCode,maxFeeFor(gross)); log("Charging… "+tx(t.hash)); await t.wait(); log("Charged ✓","ok"); return refresh(); }
     if(act==="extend"){ const t=await proto.extendAllowance(p.recipient,p.txCode,BigInt(Math.floor(Date.now()/1000)+2*365*24*3600)); log("Extending… "+tx(t.hash)); await t.wait(); return log("Extended ✓","ok"); }
     if(act==="cancel"){ const t=await proto.cancelAllowance(p.recipient,p.txCode); log("Cancelling… "+tx(t.hash)); await t.wait(); markCancelled(p.txCode); log("Cancelled ✓","ok"); return renderPlans(); }
   }
@@ -319,7 +322,8 @@ const __$G=typeof globalThis!=="undefined"?globalThis:typeof window!=="undefined
     const eph=ethers.Wallet.createRandom();
     const txCode=ethers.hexlify(ethers.randomBytes(32));
     const expiry=BigInt(Math.floor(Date.now()/1000)+7*24*3600);
-    const t=await proto.createClaimable(TUSDC,U($("linkAmount").value||"25"),txCode,eph.address,expiry);
+    const linkAmt=U($("linkAmount").value||"25");
+    const t=await proto.createClaimable(TUSDC,linkAmt,txCode,eph.address,expiry,maxFeeFor(linkAmt));
     log("Creating claim-by-link… "+tx(t.hash)); await t.wait(); log("Claimable created ✓","ok");
     const payload=btoa(JSON.stringify({s:me,c:txCode,k:eph.privateKey}));
     $("linkOut").value=location.origin+location.pathname+"#claim="+payload;

@@ -1,6 +1,6 @@
 # FAQ
 
-Common questions about the Vektes protocol.
+Common questions about the Vektes protocol (v2).
 
 ---
 
@@ -8,7 +8,7 @@ Common questions about the Vektes protocol.
 
 ### What is Vektes?
 
-Vektes is an on-chain settlement protocol that adds wire-transfer-style guarantees to EVM token transfers — deduplication, optional settlement scheduling, sender-irrevocability, and recipient rejection.
+Vektes is an on-chain settlement protocol that adds wire-transfer-style guarantees to EVM token transfers — deduplication, optional settlement scheduling, sender-irrevocability, and recipient rejection — plus send-by-link, airdrops and recurring allowances in v2.
 
 ### What problem does it solve?
 
@@ -20,7 +20,11 @@ Plain ERC-20 `transfer()` is fire-and-forget. Vektes adds:
 
 ### Is Vektes custodial?
 
-No. It's a non-custodial, immutable smart contract. For instant transfers funds pass straight through to the recipient; for scheduled transfers they're held by the contract until the recipient claims. No party — including the owner — can redirect or seize funds.
+No. It's a non-custodial, immutable smart contract. For instant transfers funds pass straight through to the recipient; for scheduled transfers they're held by the contract until released to the fixed recipient (by anyone) or rejected (by the recipient). No party — including the owner — can redirect, seize or hold funds.
+
+### v1 or v2?
+
+**v2** (`0x1340…Ad34`) is the current contract; all new integrations should use it. v1 (`0xd055…E8B7`) stays live and immutable so transfers scheduled on it can still be claimed or rejected there. They share no state.
 
 ---
 
@@ -28,19 +32,23 @@ No. It's a non-custodial, immutable smart contract. For instant transfers funds 
 
 ### Instant or scheduled — what's the difference?
 
-If `settlementDate <= now` (e.g. `0`), the transfer is **instant**: the recipient gets the funds in the same transaction, and nothing is stored to claim. If `settlementDate` is in the future, it's **scheduled**: funds are held until then and the recipient calls `claim()`.
+If `settlementDate <= now` (e.g. `0`), the transfer is **instant**: the recipient gets the funds in the same transaction, and nothing is stored. If `settlementDate` is in the future, it's **scheduled**: funds are held until then, after which anyone calls `release()`.
 
 ### Can I cancel a transfer after sending?
 
-No. Transfers are **irrevocable by the sender**. The only way funds return is if the recipient rejects a *scheduled* transfer via `rejectTransfer()` (which refunds the sender). Instant transfers are final on delivery.
+No. Transfers are **irrevocable by the sender**. The only way funds return is if the recipient rejects a *scheduled* transfer via `reject()` (which refunds the sender in full). Instant transfers are final on delivery.
 
-### What happens if the recipient never claims a scheduled transfer?
+### What happens if nobody releases a scheduled transfer?
 
-Funds stay locked in the contract indefinitely; the sender cannot reclaim them. (The recipient can still `rejectTransfer` to refund the sender.)
+It stays releasable indefinitely — the sender, the recipient, or any third party can call `release()` at any time after the date, and the funds always go to the recipient. The sender cannot reclaim; the recipient can still `reject()` to refund the sender until it is released.
+
+### What if the recipient can't receive the funds?
+
+A release never fails for that reason. ETH sent to a contract that can't accept it is delivered as **WETH**; an ERC-20 the token refuses to deliver is **credited**, and the recipient pulls it with `withdraw(token, to)` to any address they choose.
 
 ### What tokens are supported?
 
-A **curated allowlist** of standard ERC-20s (currently USDC and USDT), plus native ETH via `sendNative()`. Sending a non-allowlisted token reverts with `TokenNotSupported`. Fee-on-transfer and rebasing tokens are intentionally excluded. Check `supportedTokens(token)` first.
+A **curated allowlist** of standard ERC-20s (USDC, USDT and $VEK), plus native ETH via `sendNative()`. Sending a non-allowlisted token reverts with `TokenNotSupported`. Fee-on-transfer and rebasing tokens are intentionally excluded. Check `supportedTokens(token)` first.
 
 ### What happens if I reuse a transaction code?
 
@@ -56,11 +64,11 @@ Instant delivery — the recipient receives funds immediately in the send transa
 
 ### Can the settlement date be changed after sending?
 
-No. It's fixed when the transfer is created.
+Only **earlier**, and only by the sender (`shortenSettlementDate`). It can never be pushed later.
 
 ### Can the recipient reject before the settlement date?
 
-Yes. `rejectTransfer()` works any time before the transfer is claimed — before or after the settlement date.
+Yes. `reject()` works any time before the transfer is released — before or after the settlement date.
 
 ---
 
@@ -68,15 +76,15 @@ Yes. `rejectTransfer()` works any time before the transfer is claimed — before
 
 ### How much does it cost?
 
-**Currently nothing** — the protocol launched with all fee tiers set to `0`. When fees are activated, they're tiered by the **sender's monthly volume** (0.005% / 0.01% / 0.02% above a free tier), paid in $VEK, and the recipient always receives the full transfer amount. See the [Fee Model](./fee-model.md).
+**Currently nothing** — the protocol launched with all fee tiers set to `0`. When fees are activated they're tiered by the **sender's monthly volume** (0.005% / 0.01% / 0.02% above a free tier), capped on-chain at 1%, and taken from the asset being sent. See the [Fee Model](./fee-model.md).
 
 ### What token are fees paid in?
 
-**$VEK**. When fees are active you must hold VEK and approve the protocol to spend it. While fees are `0`, no VEK is needed.
+**The asset you send.** The recipient receives `amount − fee`. You never need $VEK to transact, and $VEK transfers themselves are fee-exempt.
 
 ### Is there a maximum fee?
 
-There's no fixed cap. Instead you set a **per-transaction cap** (`maxFeeVek`) via the 6-argument `send`/`sendNative` overloads; the send reverts with `FeeExceedsMax` if the fee would exceed it. Quote the fee with `previewFee(sender, token, amount)`.
+Yes, two: an **immutable 1% ceiling** (`MAX_FEE_BPS = 1000`) that no configuration can exceed, and a **per-call `maxFee`** you pass on every fee-bearing function (in the transfer asset). The call reverts with `FeeExceedsMax` if the fee would exceed your cap. Note that `maxFee = 0` means "accept no fee at all".
 
 ### Are fee tiers based on the transfer size?
 
@@ -84,31 +92,47 @@ No — on the **sender's cumulative volume over a rolling ~30-day window**. Two 
 
 ### Where do fees go?
 
-Split by `burnPercentage` (currently 50): half burned to `0x…dEaD`, half to the treasury (the Gnosis Safe). The split is owner-adjustable.
+They accrue inside the contract (separately from user escrow) and can be swept by the owner **only to the treasury** (the Gnosis Safe). Any buy-and-burn of $VEK happens off-chain from swept fees.
 
 ### When will fees be activated?
 
-They're currently `0` (fee-free launch), so the burn mechanism is dormant and no $VEK is needed to transact — $VEK's protocol-fee utility is latent until fees are switched on. Turning fees on is a **governance decision**: the owner sets non-zero tiers via `updateFeeTier` once the protocol has sustained real usage. There's no fixed date, and the specific trigger (a volume / active-user threshold or a governance vote) is being finalized and will be announced. Until then, transfers are completely free. See [Fee Model → Fee Activation](./fee-model.md#fee-activation).
+There's no fixed date. Turning fees on is a governance decision, bounded by the 1% ceiling, and would be announced in advance. Until then, transfers are completely free. See [Fee Model → Fee Activation](./fee-model.md#fee-activation).
 
 ---
 
-## Claiming
+## Releasing & Rejecting
 
-### Who can claim?
+### Who can release?
 
-Only the designated recipient of a scheduled transfer. No one else — not even the owner. (Instant transfers need no claim.)
+**Anyone**, once the settlement date has passed — the funds always go to the recipient fixed at send time, so a third party can only complete the intended payment. (Instant transfers need no release.)
 
-### Can I claim multiple transfers at once?
+### Can I release many transfers at once?
 
-Yes — `batchClaim(senders[], txCodes[])`. Non-claimable entries in the batch are **skipped**, not reverted, so one bad entry doesn't fail the whole call.
+Yes — `releaseMany(senders[], recipients[], txCodes[])`. Entries that aren't due or valid are **skipped**, and an undeliverable payout is credited, so one bad entry never fails the batch.
 
 ### How do I reject a transfer?
 
-`rejectTransfer(sender, txCode)` — funds return to the original sender. Any time before claiming.
+`reject(sender, txCode)` from the recipient's address — funds return to the original sender. Any time before release.
 
-### Can I partially claim?
+### Can I partially release?
 
-No. Claims are all-or-nothing; the full amount goes to the recipient.
+No. Releases are all-or-nothing; the full net amount goes to the recipient.
+
+---
+
+## Send by link, airdrops, subscriptions
+
+### How does "send by link" work?
+
+You generate a throwaway keypair, lock the payment to its address with `createClaimable`, and share the private key as a link. The holder signs an EIP-712 `Claim` naming their own payout address and calls `claimTo` — because the payout address is inside the signature, nobody can hijack it from the mempool. If the link is never used, you `reclaim` after the expiry you chose.
+
+### Are airdrops sybil-proof?
+
+No. A campaign allows one claim per payout address, which stops accidental double-claims but not someone with many wallets. Share campaign links with known recipients rather than publicly.
+
+### How do recurring allowances differ from an escrow?
+
+Nothing is locked up front. The merchant pulls each period's amount from the customer's wallet via their standing approval, so a charge only succeeds while the customer keeps enough balance and approval — like a card. Orders have a required end date, an arrears cap (older unpaid periods lapse), and the customer can cancel (forfeiting unclaimed periods) or renew at any time.
 
 ---
 
@@ -116,7 +140,7 @@ No. Claims are all-or-nothing; the full amount goes to the recipient.
 
 ### Has it been audited?
 
-Yes — by **CertiK**, no critical/high findings. See [Security](./security.md).
+Yes — v2 by **CertiK** at tag `audit-2.6.0` (final report 2026-09-11): 0 Critical / 0 Major, all code findings resolved. v1 was audited separately. See [Security](./security.md).
 
 ### Is the contract upgradeable?
 
@@ -124,11 +148,11 @@ No. Immutable — no proxy, no `delegatecall`.
 
 ### What can the owner do?
 
-The owner (a 2-of-3 Gnosis Safe, `Ownable2Step`) can only **configure**: pause/unpause new sends, update fee tiers, oracle feeds, treasury, burn split, the fee token, and the supported-token allowlist. It **cannot** access funds, change recipients, block settled claims, or mint VEK.
+The owner (a 2-of-3 Gnosis Safe, `Ownable2Step`) can only **configure**: pause/unpause creation of new transfers, update fee tiers (up to 1%), oracle feeds, treasury, fee-exempt flags and the supported-token allowlist, and sweep accrued fees to the treasury. It **cannot** access escrowed funds, change recipients, block a release or rejection, or mint VEK.
 
 ### What happens if the protocol is paused?
 
-New sends stop; existing transfers can still be claimed or rejected. Funds are never trapped.
+New sends, claim-links, campaigns and allowances stop; everything already committed can still be released, rejected, claimed, reclaimed, withdrawn or collected. Funds are never trapped.
 
 ---
 
@@ -140,20 +164,21 @@ No — it's a standard contract. Use ethers.js, viem, web3.js, etc. See the [Int
 
 ### How do I monitor for incoming transfers?
 
-Watch **both** `InstantTransfer` (immediate) and `TransferCreated` (scheduled), filtered by your address as recipient. There is no single `TransferSent` event.
+Watch **both** `InstantTransfer` (immediate) and `TransferCreated` (scheduled), filtered by your address as recipient, then `TransferReleased` / `TransferRejected` for resolution. There is no single `TransferSent` event.
 
 ### Is there a testnet deployment?
 
-Contact the team for testnet addresses.
+Yes — the same audited code is on **Sepolia** with open-mint test stablecoins. See `TESTNET.md` in the [contracts repository](https://github.com/bontidy/vektes-contracts).
 
 ### Can I integrate from a smart contract?
 
-Yes. Import an `IVektes` interface and call directly (ensure your contract holds approvals):
+Yes. Import an interface and call directly (ensure your contract holds approvals, and can receive WETH or call `withdraw` if it will be a recipient):
 
 ```solidity
-interface IVektes {
-    function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate) external;
-    function claim(address sender, bytes32 txCode) external;
-    function rejectTransfer(address sender, bytes32 txCode) external;
+interface IVektesV2 {
+    function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFee) external;
+    function release(address sender, address recipient, bytes32 txCode) external;
+    function reject(address sender, bytes32 txCode) external;
+    function withdraw(address token, address to) external;
 }
 ```

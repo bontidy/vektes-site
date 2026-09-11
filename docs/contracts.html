@@ -28,6 +28,7 @@
       <a href="/docs/">Overview</a>
       <a href="/docs/quick-start">Quick Start</a>
       <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/protocol-reference-v1">Protocol Reference (v1, legacy)</a>
       <a href="/docs/fee-model">Fee Model</a>
       <a href="/docs/integration-guide">Integration Guide</a>
       <a href="/docs/contracts" aria-current="page">Contracts</a>
@@ -132,13 +133,18 @@ Burnable:        Yes (ERC20Burnable; protocol fees are also burned to 0x…dEaD)
 </thead>
 <tbody><tr>
 <td>USDC (<code>0xA0b8…eB48</code>)</td>
-<td>✅ Supported</td>
+<td>✅ Supported (v1 + v2)</td>
 <td>Chainlink USDC/USD feed registered</td>
 </tr>
 <tr>
 <td>USDT (<code>0xdAC1…1ec7</code>)</td>
-<td>✅ Supported</td>
+<td>✅ Supported (v1 + v2)</td>
 <td>Chainlink USDT/USD feed registered</td>
+</tr>
+<tr>
+<td>$VEK (<code>0xb4fa…d215</code>)</td>
+<td>✅ Supported on v2, <strong>fee-exempt</strong></td>
+<td>No oracle needed; VEK-to-VEK transfers are always free</td>
 </tr>
 <tr>
 <td>Native ETH</td>

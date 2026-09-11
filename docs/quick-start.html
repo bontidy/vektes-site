@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Quick Start — Vektes Docs</title>
-<meta name="description" content="Send your first Vektes transfer — approve, send (instant or scheduled), claim." />
+<meta name="description" content="Send your first Vektes v2 transfer — approve, send (instant or scheduled), release." />
 <meta name="theme-color" content="#0c8f6b" />
 <link rel="canonical" href="https://vektes.com/docs/quick-start" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
@@ -28,6 +28,7 @@
       <a href="/docs/">Overview</a>
       <a href="/docs/quick-start" aria-current="page">Quick Start</a>
       <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/protocol-reference-v1">Protocol Reference (v1, legacy)</a>
       <a href="/docs/fee-model">Fee Model</a>
       <a href="/docs/integration-guide">Integration Guide</a>
       <a href="/docs/contracts">Contracts</a>
@@ -38,83 +39,79 @@
   </aside>
   <main class="doc-content">
 <h1 id="quick-start">Quick Start</h1>
-<blockquote>
-<p><strong>Vektes Protocol v2 is live</strong> (2026-09-11) at <strong><code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code></strong> —
-use that address for new sends. The examples below were written for v1 (<code>0xd055…E8B7</code>, legacy, still
-live); on v2 the <code>send</code> calls are the same except the last argument is a <strong>fee cap in the asset you are
-sending</strong> (pass <code>amount * 1000n / 100000n</code>, the contract&#39;s 1% ceiling — never <code>0</code>), no VEK approval is ever
-needed, and after the settlement date the transfer is <strong>released</strong> by anyone (<code>release(sender, recipient, txCode)</code>) rather than claimed by the recipient. See <a href="/docs/contracts">Contracts</a> for the v2 configuration.</p>
-</blockquote>
-<p>Send your first transfer through the Vektes protocol in a few minutes.</p>
+<p>Send your first transfer through Vektes Protocol v2 in a few minutes.</p>
 <hr>
 <h2 id="prerequisites">Prerequisites</h2>
 <ul>
 <li>An EVM wallet with ETH for gas plus the token you want to send</li>
-<li>The token must be <strong>on the supported-token allowlist</strong> (currently USDC, USDT; native ETH always works)</li>
-<li>Approve the protocol to spend the token (standard ERC-20 <code>approve</code>)</li>
+<li>The token must be <strong>on the supported-token allowlist</strong> (USDC, USDT, $VEK; native ETH always works)</li>
+<li>Approve the protocol to spend the token (standard ERC-20 <code>approve</code>) — or use <code>sendWithPermit</code> for ERC-2612 tokens</li>
 <li>A unique transaction code (<code>bytes32</code>) — your dedup key, unique per <strong>sender→recipient</strong> pair</li>
-<li>VEK for fees <strong>only if fees are active</strong> (they are currently <code>0</code> — see <a href="/docs/fee-model">Fee Model</a>)</li>
+<li><strong>No $VEK is ever needed.</strong> Any fee is taken from the asset you send, and fees are currently <code>0</code> — see <a href="/docs/fee-model">Fee Model</a></li>
 </ul>
+<pre><code class="language-typescript">const VEKTES_ADDRESS = &quot;0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34&quot;; // v2, Ethereum mainnet
+const USDC_ADDRESS   = &quot;0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48&quot;;
+const MAX_FEE = (amount: bigint) =&gt; amount * 1000n / 100000n;         // the 1% protocol ceiling — never pass 0
+</code></pre>
 <hr>
 <h2 id="1-approve-the-token">1. Approve the Token</h2>
 <pre><code class="language-typescript">// ethers.js v6
-const token = new ethers.Contract(tokenAddress, ERC20_ABI, signer);
-await token.approve(&quot;0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34&quot;, amount); // v2 (v1: 0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7)
+const token = new ethers.Contract(USDC_ADDRESS, ERC20_ABI, signer);
+await token.approve(VEKTES_ADDRESS, amount);
 </code></pre>
 <hr>
 <h2 id="2-send-a-transfer">2. Send a Transfer</h2>
 <h3 id="instant-erc-20-transfer-settlementdate-0">Instant ERC-20 transfer (<code>settlementDate = 0</code>)</h3>
-<p>With <code>settlementDate = 0</code>, the recipient receives the funds <strong>immediately, in the same transaction</strong> — there&#39;s nothing to claim.</p>
+<p>With <code>settlementDate = 0</code>, the recipient receives the funds <strong>immediately, in the same transaction</strong> — there is nothing to release.</p>
 <pre><code class="language-typescript">const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, signer);
 
-const txCode = ethers.id(&quot;INV-2026-0042&quot;); // bytes32, unique for this recipient
+const amount = 1_000_000n;                      // 1 USDC (6 decimals)
+const txCode = ethers.id(&quot;INV-2026-0042&quot;);      // bytes32, unique for this recipient
 
-const tx = await vektes.send(
+const tx = await vektes[&quot;send(address,address,uint256,bytes32,uint256,uint256)&quot;](
   USDC_ADDRESS,      // token (must be supported)
   recipientAddress,  // to
-  1_000_000n,        // amount (1 USDC, 6 decimals)
+  amount,            // amount pulled from you; the recipient gets amount − fee (fee is 0 today)
   txCode,            // unique code (per sender→recipient)
-  0                  // settlementDate: 0 = instant delivery
+  0,                 // settlementDate: 0 = instant delivery
+  MAX_FEE(amount)    // maxFee: strict cap on the in-kind fee, in USDC units
 );
 await tx.wait();
 console.log(&quot;Delivered:&quot;, tx.hash);
 </code></pre>
-<p>To protect against fee slippage once fees are active, use the 6-argument overload with a <code>maxFeeVek</code> cap (quote it via <code>previewFee</code>):</p>
-<pre><code class="language-typescript">const fee = await vektes.previewFee(signer.address, USDC_ADDRESS, 1_000_000n);
-await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, 0, fee);
-</code></pre>
+<blockquote>
+<p><code>maxFee</code> is a <strong>strict</strong> cap in the asset you send. <code>0</code> means &quot;accept no fee&quot; and will revert the moment fees are switched on. Use the 1% ceiling above, or quote the exact fee with <code>previewFee(sender, token, amount)</code>.</p>
+</blockquote>
 <h3 id="scheduled-transfer-future-settlement">Scheduled transfer (future settlement)</h3>
-<p>With a future <code>settlementDate</code>, funds are <strong>held in the contract</strong> until that time, then the recipient claims.</p>
+<p>With a future <code>settlementDate</code>, funds are <strong>held in the contract</strong> until that time. After it, <strong>anyone</strong> — you, the recipient, or a keeper — can release them to the recipient. Until release the recipient can reject to refund you; you can never claw the funds back.</p>
 <pre><code class="language-typescript">const settlementDate = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60; // +7 days
-await vektes.send(USDC_ADDRESS, recipientAddress, 1_000_000n, txCode, settlementDate);
+await vektes[&quot;send(address,address,uint256,bytes32,uint256,uint256)&quot;](
+  USDC_ADDRESS, recipientAddress, amount, txCode, settlementDate, MAX_FEE(amount));
 </code></pre>
 <h3 id="native-eth">Native ETH</h3>
-<pre><code class="language-typescript">const tx = await vektes.sendNative(
-  recipientAddress,
-  txCode,
-  0,                                    // 0 = instant
-  { value: ethers.parseEther(&quot;0.5&quot;) }
-);
+<pre><code class="language-typescript">const value = ethers.parseEther(&quot;0.5&quot;);
+const tx = await vektes[&quot;sendNative(address,bytes32,uint256,uint256)&quot;](
+  recipientAddress, txCode, 0 /* instant */, MAX_FEE(value), { value });
 </code></pre>
 <hr>
-<h2 id="3-claim-a-scheduled-transfer-recipient">3. Claim a Scheduled Transfer (recipient)</h2>
-<p>Only needed for <strong>scheduled</strong> transfers, once the settlement date has passed. (Instant transfers are already delivered — no claim.)</p>
-<pre><code class="language-typescript">const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, recipientSigner);
-const tx = await vektes.claim(senderAddress, txCode);
+<h2 id="3-release-a-scheduled-transfer-anyone">3. Release a Scheduled Transfer (anyone)</h2>
+<p>Only needed for <strong>scheduled</strong> transfers, once the settlement date has passed. Instant transfers are already delivered.</p>
+<pre><code class="language-typescript">// Any signer may call this; funds go to the fixed recipient regardless of who calls.
+const tx = await vektes.release(senderAddress, recipientAddress, txCode);
 await tx.wait();
-console.log(&quot;Funds claimed!&quot;);
+console.log(&quot;Released!&quot;);
 </code></pre>
-<p>The recipient can instead <code>rejectTransfer(senderAddress, txCode)</code> at any time before claiming, which refunds the sender.</p>
+<p>The recipient can instead <code>reject(senderAddress, txCode)</code> at any time before release, which refunds the sender in full.</p>
 <hr>
 <h2 id="4-check-transfer-status-optional">4. Check Transfer Status (optional)</h2>
 <p>All lookups take <strong>sender, recipient, and code</strong>:</p>
 <pre><code class="language-typescript">// Scheduled transfers only — instant transfers are not stored (track them via the InstantTransfer event)
 const t = await vektes.getTransfer(senderAddress, recipientAddress, txCode);
 console.log(t);
-// { token, sender, recipient, amount, fee, settlementDate, createdAt, txCode, claimed, cancelled }
+// { token, sender, recipient, amount, fee, settlementDate, createdAt, txCode, released, rejected, usdVolume, volumePeriod }
 
-const claimable = await vektes.isClaimable(senderAddress, recipientAddress, txCode);
-console.log(&quot;Claimable now:&quot;, claimable);
+const ready = await vektes.isReleasable(senderAddress, recipientAddress, txCode);
+console.log(&quot;Releasable now:&quot;, ready);
 </code></pre>
 <hr>
 <h2 id="transaction-code-best-practices">Transaction Code Best Practices</h2>
@@ -135,6 +132,10 @@ console.log(&quot;Claimable now:&quot;, claimable);
 <td><code>ethers.id(&quot;550e8400-e29b-41d4-a716-446655440000&quot;)</code></td>
 </tr>
 <tr>
+<td>Human-readable (≤ 31 chars)</td>
+<td><code>ethers.encodeBytes32String(&quot;INV-2026-0042&quot;)</code> — what the Vektes app uses</td>
+</tr>
+<tr>
 <td>Incremental counter</td>
 <td><code>ethers.zeroPadValue(ethers.toBeHex(nonce), 32)</code></td>
 </tr>
@@ -143,13 +144,13 @@ console.log(&quot;Claimable now:&quot;, claimable);
 const used = await vektes.isCodeUsed(signer.address, recipientAddress, txCode);
 </code></pre>
 <blockquote>
-<p>⚠️ <strong>Important:</strong> reusing a code for the <em>same</em> recipient reverts with <code>DuplicateTransactionCode(txCode, recipient)</code>.</p>
+<p>⚠️ Reusing a code for the <em>same</em> recipient reverts with <code>DuplicateTransactionCode(txCode, recipient)</code>.</p>
 </blockquote>
 <hr>
 <h2 id="next-steps">Next Steps</h2>
 <ul>
-<li><a href="/docs/protocol-reference">Protocol Reference →</a> — full function signatures and parameters</li>
-<li><a href="/docs/fee-model">Fee Model →</a> — how fees work (and why they&#39;re currently free)</li>
+<li><a href="/docs/protocol-reference">Protocol Reference →</a> — full function signatures, including claim-by-link, airdrops and recurring allowances</li>
+<li><a href="/docs/fee-model">Fee Model →</a> — in-kind fees, <code>previewFee</code>, and <code>maxFee</code></li>
 <li><a href="/docs/integration-guide">Integration Guide →</a> — build a full payment flow</li>
 </ul>
 

@@ -28,6 +28,7 @@
       <a href="/docs/" aria-current="page">Overview</a>
       <a href="/docs/quick-start">Quick Start</a>
       <a href="/docs/protocol-reference">Protocol Reference</a>
+      <a href="/docs/protocol-reference-v1">Protocol Reference (v1, legacy)</a>
       <a href="/docs/fee-model">Fee Model</a>
       <a href="/docs/integration-guide">Integration Guide</a>
       <a href="/docs/contracts">Contracts</a>
@@ -42,8 +43,9 @@
 <p>Programmable, irrevocable token transfers with built-in deduplication, optional settlement scheduling, and recipient controls.</p>
 </blockquote>
 <h2 id="what-is-vektes">What is Vektes?</h2>
-<p>Vektes is an on-chain settlement protocol that brings payment-grade guarantees to EVM token transfers. It wraps ERC-20 and native ETH movements in a thin coordination layer that prevents duplicate sends, can enforce a settlement window, and lets recipients reject inbound scheduled funds.</p>
+<p>Vektes is an on-chain settlement protocol that brings payment-grade guarantees to EVM token transfers. It wraps ERC-20 and native ETH movements in a thin coordination layer that prevents duplicate sends, can enforce a settlement window, and lets recipients reject inbound scheduled funds. v2 adds sending to a <strong>link</strong> instead of an address, one-link <strong>airdrops</strong>, and <strong>recurring allowances</strong> (crypto direct debit).</p>
 <p>Think of it as <strong>wire-transfer semantics for smart contracts</strong>.</p>
+<p><strong>Current contract:</strong> Vektes Protocol v2 — <code>0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34</code> on Ethereum mainnet, CertiK-audited. (The <a href="/docs/protocol-reference-v1">v1 contract</a> stays live for transfers already scheduled on it.)</p>
 <hr>
 <h2 id="core-primitives">Core Primitives</h2>
 <div class="table-wrap"><table>
@@ -55,41 +57,57 @@
 </thead>
 <tbody><tr>
 <td><strong>Deduplication</strong></td>
-<td>Every transfer is keyed by <code>(sender, recipient, txCode)</code>. A code can only be used once per <strong>sender→recipient pair</strong> — replay and double-send revert at the protocol level.</td>
+<td>Every record is keyed by <code>(sender, counterparty, txCode)</code>. A code can only be used once per <strong>sender→counterparty pair</strong> — replay and double-send revert at the protocol level.</td>
 </tr>
 <tr>
 <td><strong>Instant or scheduled</strong></td>
-<td><code>settlementDate = 0</code> (or any past time) delivers immediately. A future <code>settlementDate</code> locks the funds in the contract until then, when the recipient can claim.</td>
+<td><code>settlementDate = 0</code> (or any past time) delivers immediately. A future <code>settlementDate</code> locks the funds in the contract until then, after which <strong>anyone</strong> can release them to the recipient.</td>
 </tr>
 <tr>
 <td><strong>Irrevocability</strong></td>
-<td>Once submitted, the sender cannot cancel, reverse, or redirect a transfer — the same finality as a bank wire.</td>
+<td>Once submitted, the sender cannot cancel, reverse, or redirect a transfer — the same finality as a bank wire. The sender may only bring the date <em>earlier</em>.</td>
 </tr>
 <tr>
 <td><strong>Recipient Rejection</strong></td>
-<td>For a scheduled transfer, the recipient may call <code>rejectTransfer()</code> to return the funds to the sender (before claiming). Only the recipient — never the sender.</td>
+<td>For a scheduled transfer, the recipient may call <code>reject()</code> at any time before release to return the funds to the sender. Only the recipient — never the sender.</td>
+</tr>
+<tr>
+<td><strong>Never stranded</strong></td>
+<td>A payout that cannot be delivered (a contract that can&#39;t take ETH, a token that froze the address) is delivered as WETH or credited for the beneficiary to <code>withdraw()</code> — it never reverts and never gets stuck.</td>
 </tr>
 <tr>
 <td><strong>Multi-Asset</strong></td>
-<td>Any allowlisted ERC-20 via <code>send()</code>, or native ETH via <code>sendNative()</code>. The recipient always receives the full amount; any fee is charged separately in $VEK.</td>
+<td>Any allowlisted ERC-20 via <code>send()</code> (or <code>sendWithPermit()</code> for one-signature sends), or native ETH via <code>sendNative()</code>. Any fee is taken <strong>in-kind</strong> from the asset sent — no $VEK needed. Fees are 0 today.</td>
+</tr>
+<tr>
+<td><strong>Send by link</strong></td>
+<td>Lock a payment to a one-time key and share it as a link; the holder claims to any wallet (front-run-safe), the sender reclaims after expiry.</td>
+</tr>
+<tr>
+<td><strong>Airdrops</strong></td>
+<td>One link, many claims: a pool with a fixed amount per claim, once per wallet.</td>
+</tr>
+<tr>
+<td><strong>Recurring allowances</strong></td>
+<td>A customer authorises a merchant to pull a fixed amount each period — required end date, arrears cap, cancel or renew anytime.</td>
 </tr>
 </tbody></table></div>
 <hr>
 <h2 id="how-it-works">How It Works</h2>
 <p><strong>Instant transfer</strong> (<code>settlementDate = 0</code>):</p>
-<pre><code>Sender ── send(token, to, amount, txCode, 0) ──▶ Vektes ──▶ Recipient (delivered in the same tx)
+<pre><code>Sender ── send(token, to, amount, txCode, 0, maxFee) ──▶ Vektes ──▶ Recipient (delivered in the same tx)
 </code></pre>
 <p><strong>Scheduled transfer</strong> (future <code>settlementDate</code>):</p>
-<pre><code>Sender ── send(..., settlementDate) ──▶ Vektes  (funds locked)
-                                          │  (settlement date passes)
-Recipient ── claim(sender, txCode) ──────▶│──▶ funds released to recipient
-   or ────── rejectTransfer(...) ─────────▶│──▶ funds refunded to sender
+<pre><code>Sender ── send(..., settlementDate, maxFee) ──▶ Vektes  (funds locked)
+                                                 │  (settlement date passes)
+Anyone ──── release(sender, recipient, txCode) ─▶│──▶ funds pushed to the recipient
+Recipient ─ reject(sender, txCode) ─────────────▶│──▶ funds refunded to the sender (any time before release)
 </code></pre>
 <ol>
 <li><strong>Sender</strong> calls <code>send()</code> / <code>sendNative()</code> with a unique code and a settlement date (<code>0</code> = instant).</li>
-<li>Instant transfers are delivered immediately; scheduled transfers are held and the transfer is now <strong>irrevocable</strong> from the sender&#39;s side.</li>
-<li>For scheduled transfers, after the date the <strong>recipient</strong> calls <code>claim()</code>.</li>
-<li>Alternatively the recipient calls <code>rejectTransfer()</code> to refund the sender.</li>
+<li>Instant transfers are delivered immediately; scheduled transfers are held and are now <strong>irrevocable</strong> from the sender&#39;s side.</li>
+<li>After the date, <strong>anyone</strong> — the sender, the recipient, or a keeper — calls <code>release()</code>.</li>
+<li>Alternatively the recipient calls <code>reject()</code> to refund the sender.</li>
 </ol>
 <hr>
 <h2 id="quick-links">Quick Links</h2>
@@ -109,10 +127,11 @@ Recipient ── claim(sender, txCode) ──────▶│──▶ funds r
 <li><strong>Treasury operations</strong> batching disbursements to known settlement dates</li>
 <li><strong>B2B invoicing</strong> where duplicate-payment prevention matters</li>
 <li><strong>Payroll</strong> flows needing scheduled, non-reversible payouts</li>
+<li><strong>Subscriptions</strong> that want card-like recurring billing on-chain</li>
 </ul>
 <hr>
 <h2 id="status">Status</h2>
-<p>Live on Ethereum mainnet, audited by <strong>CertiK</strong>, and owned by a 2-of-3 Gnosis Safe multisig (<code>Ownable2Step</code>). The contract is immutable (non-upgradeable). The protocol currently runs <strong>fee-free</strong> — all fee tiers are set to <code>0</code> on-chain, with the tier mechanism available for later activation by governance. See <a href="/docs/security">Security</a> and <a href="/docs/fee-model">Fee Model</a>.</p>
+<p>v2 is live on Ethereum mainnet, audited by <strong>CertiK</strong> (tag <code>audit-2.6.0</code>, final report 2026-09-11, 0 Critical / 0 Major), and owned by a 2-of-3 Gnosis Safe multisig (<code>Ownable2Step</code>). The contract is immutable (non-upgradeable). The protocol currently runs <strong>fee-free</strong> — all fee tiers are <code>0</code> on-chain, with the tier mechanism (capped at 1%) available for later activation. See <a href="/docs/security">Security</a> and <a href="/docs/fee-model">Fee Model</a>.</p>
 
   </main>
 </div>

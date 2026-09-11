@@ -1,18 +1,8 @@
 # Integration Guide
 
-> **Vektes Protocol v2 is live** (2026-09-11) at **`0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34`**
-> (`VektesProtocolV2`, CertiK-audited tag `audit-2.6.0`) — **new integrations should target v2.** This guide
-> was written for v1 (`0xd055…E8B7`, still live for transfers already scheduled on it). The `send` /
-> `sendNative` / `getTransfer` / `isCodeUsed` / `previewFee` shapes carry over; what changes on v2:
-> `claim` → permissionless **`release(sender, recipient, txCode)`**, `rejectTransfer` → **`reject`**,
-> `batchClaim` → **`releaseMany`**, `isClaimable` → **`isReleasable`**, the struct fields `claimed`/`cancelled`
-> → **`released`/`rejected`**, the trailing `maxFeeVek` → **`maxFee` in the transfer asset** (strict cap — don't
-> pass `0`; the 1% ceiling `amount * 1000n / 100000n` is a safe value while fees are 0), and events
-> `TransferClaimed` → **`TransferReleased`**. See the
-> [contracts repository](https://github.com/bontidy/vektes-contracts) (`FEATURES.md`, `TESTNET.md`) for the
-> new claim-by-link, airdrop and recurring-allowance flows.
+Build a payment application on Vektes Protocol v2. Covers sending (instant and scheduled), monitoring, releasing and rejecting, undeliverable payouts, and the link, airdrop and recurring-allowance flows.
 
-Build a payment application on the Vektes protocol. Covers sending (instant and scheduled), monitoring, claiming, and rejecting.
+> Integrating against the previous contract? See the [v1 reference](./protocol-reference-v1.md). Transfers scheduled on v1 stay on v1; everything new goes to v2.
 
 ---
 
@@ -27,34 +17,45 @@ import { ethers } from "ethers";
 
 // Minimal interface — use the full verified ABI from Etherscan in production.
 const VEKTES_ABI = [
-  // sends (both overloads)
+  // sends
   "function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate) external",
-  "function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external",
+  "function send(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFee) external",
+  "function sendWithPermit(address token, address to, uint256 amount, bytes32 txCode, uint256 settlementDate, uint256 maxFee, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external",
   "function sendNative(address to, bytes32 txCode, uint256 settlementDate) external payable",
-  "function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFeeVek) external payable",
-  // exits
-  "function claim(address sender, bytes32 txCode) external",
-  "function rejectTransfer(address sender, bytes32 txCode) external",
-  "function batchClaim(address[] senders, bytes32[] txCodes) external",
+  "function sendNative(address to, bytes32 txCode, uint256 settlementDate, uint256 maxFee) external payable",
+  // resolution (all permissionless or recipient/sender-only by key; none pausable)
+  "function release(address sender, address recipient, bytes32 txCode) external",
+  "function releaseMany(address[] senders, address[] recipients, bytes32[] txCodes) external",
+  "function reject(address sender, bytes32 txCode) external",
+  "function shortenSettlementDate(address recipient, bytes32 txCode, uint256 newDate) external",
+  "function withdraw(address token, address to) external",
   // views (note: sender + recipient + code)
-  "function getTransfer(address sender, address recipient, bytes32 txCode) external view returns (tuple(address token, address sender, address recipient, uint256 amount, uint256 fee, uint256 settlementDate, uint256 createdAt, bytes32 txCode, bool claimed, bool cancelled))",
-  "function isClaimable(address sender, address recipient, bytes32 txCode) external view returns (bool)",
+  "function getTransfer(address sender, address recipient, bytes32 txCode) external view returns (tuple(address token, address sender, address recipient, uint256 amount, uint256 fee, uint256 settlementDate, uint256 createdAt, bytes32 txCode, bool released, bool rejected, uint256 usdVolume, uint256 volumePeriod))",
+  "function isReleasable(address sender, address recipient, bytes32 txCode) external view returns (bool)",
   "function isCodeUsed(address sender, address recipient, bytes32 txCode) external view returns (bool)",
   "function previewFee(address sender, address token, uint256 amount) external view returns (uint256)",
   "function getCurrentTier(address sender) external view returns (uint256 tierIndex, uint256 feeBps)",
   "function supportedTokens(address token) external view returns (bool)",
+  "function withdrawable(address beneficiary, address token) external view returns (uint256)",
   // events
-  "event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt)",
   "event InstantTransfer(address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 timestamp)",
-  "event TransferClaimed(bytes32 indexed transferKey, address indexed recipient, address token, uint256 amount, uint256 claimedAt)",
+  "event TransferCreated(bytes32 indexed transferKey, address indexed sender, address indexed recipient, address token, uint256 amount, uint256 fee, bytes32 txCode, uint256 settlementDate, uint256 createdAt)",
+  "event TransferReleased(bytes32 indexed transferKey, address indexed recipient, address indexed caller, address token, uint256 amount, uint256 timestamp)",
   "event TransferRejected(bytes32 indexed transferKey, address indexed recipient, address indexed sender, address token, uint256 amount, uint256 rejectedAt)",
+  "event PayoutWrapped(address indexed beneficiary, uint256 amount)",
+  "event PayoutDeferred(address indexed beneficiary, address indexed token, uint256 amount)",
+  "event Withdrawn(address indexed beneficiary, address indexed token, address to, uint256 amount)",
 ];
 
-const VEKTES_ADDRESS = "0xd0554A67EB0438a28A31adFc8D4CfBb4ec50E8B7";
+const VEKTES_ADDRESS = "0x1340cf73cbF9d62eDfC7ECCea49aCdbA420EAd34"; // v2, Ethereum mainnet
+const WETH           = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY!, provider);
 const vektes = new ethers.Contract(VEKTES_ADDRESS, VEKTES_ABI, signer);
+
+// The 1% protocol ceiling (MAX_FEE_BPS = 1000). A safe maxFee that can never spuriously revert.
+const maxFeeFor = (amount: bigint) => amount * 1000n / 100000n;
 ```
 
 ---
@@ -81,69 +82,73 @@ async function ensureCodeAvailable(recipient: string, code: string): Promise<voi
 async function sendPayment(params: {
   token: string;
   recipient: string;
-  amount: bigint;
+  amount: bigint;          // pulled from the sender; the recipient receives amount − fee
   paymentId: string;
   settlementDate?: number; // 0/undefined = instant
 }) {
   const txCode = generateTxCode(params.paymentId);
 
   // 1. Token must be supported
-  if (!(await vektes.supportedTokens(params.token))) {
-    throw new Error("Token not supported by the protocol");
-  }
+  if (!(await vektes.supportedTokens(params.token))) throw new Error("Token not supported by the protocol");
 
   // 2. Code must be free for this recipient
   await ensureCodeAvailable(params.recipient, txCode);
 
-  // 3. Preview + cap the fee (0 while the protocol is free)
-  const fee = await vektes.previewFee(signer.address, params.token, params.amount);
+  // 3. Fee cap. previewFee() is exact today; the 1% ceiling is the robust choice for a service.
+  //    NEVER pass 0 — on v2 that means "accept no fee" and reverts as soon as a tier is non-zero.
+  const maxFee = maxFeeFor(params.amount);
 
-  // 4. Approve the transfer token (and VEK if a fee applies)
+  // 4. Approve the transfer token (exact amount; no VEK approval is ever needed on v2)
   const token = new ethers.Contract(params.token, ERC20_ABI, signer);
   if ((await token.allowance(signer.address, VEKTES_ADDRESS)) < params.amount) {
     await (await token.approve(VEKTES_ADDRESS, params.amount)).wait();
   }
-  if (fee > 0n) {
-    const vek = new ethers.Contract(VEK_ADDRESS, ERC20_ABI, signer);
-    if ((await vek.allowance(signer.address, VEKTES_ADDRESS)) < fee) {
-      await (await vek.approve(VEKTES_ADDRESS, fee)).wait();
-    }
-  }
 
-  // 5. Send (6-arg overload with the fee cap for slippage safety)
-  const tx = await vektes.send(
-    params.token, params.recipient, params.amount, txCode,
-    params.settlementDate ?? 0, fee
+  // 5. Send (6-arg overload; name the signature explicitly because `send` is overloaded)
+  const tx = await vektes["send(address,address,uint256,bytes32,uint256,uint256)"](
+    params.token, params.recipient, params.amount, txCode, params.settlementDate ?? 0, maxFee
   );
   const receipt = await tx.wait();
   return { txHash: receipt.hash, txCode, blockNumber: receipt.blockNumber };
 }
 ```
 
-> **Instant vs scheduled:** `settlementDate ?? 0` delivers immediately (`InstantTransfer`). A future timestamp locks the funds until then (`TransferCreated`), and the recipient claims later.
+> **Instant vs scheduled:** `settlementDate ?? 0` delivers immediately (`InstantTransfer`). A future timestamp locks the funds until then (`TransferCreated`); after the date anyone may release them.
+
+### One-signature send (ERC-2612)
+
+For permit-capable tokens such as USDC, skip the separate approval:
+
+```typescript
+const deadline = Math.floor(Date.now() / 1000) + 3600;
+const { v, r, s } = await signPermit(usdc, signer, VEKTES_ADDRESS, amount, deadline); // standard EIP-2612 helper
+await vektes.sendWithPermit(usdc.target, recipient, amount, txCode, 0, maxFeeFor(amount), deadline, v, r, s);
+```
 
 ---
 
 ## Listening to Events
 
-Both a send path (`InstantTransfer` for immediate, `TransferCreated` for scheduled) must be watched — there is no single `TransferSent` event.
+Watch **both** send paths (`InstantTransfer` for immediate, `TransferCreated` for scheduled) — there is no single `TransferSent` event.
 
 ```typescript
 // Incoming to a given recipient — instant deliveries
 vektes.on(vektes.filters.InstantTransfer(null, recipient),
-  (sender, rcpt, token, amount, fee, txCode, timestamp) => {
-    // funds already delivered on-chain
-  });
+  (sender, rcpt, token, amount, fee, txCode, timestamp) => { /* funds already delivered */ });
 
-// Incoming to a given recipient — scheduled (claimable later)
+// Incoming to a given recipient — scheduled (releasable later)
 vektes.on(vektes.filters.TransferCreated(null, null, recipient),
   (transferKey, sender, rcpt, token, amount, fee, txCode, settlementDate, createdAt) => {
-    // notify recipient; claimable at settlementDate
+    // notify recipient; releasable by anyone at settlementDate
   });
 
-// Claims / rejections on transfers you sent (filter by transferKey if you track it)
-vektes.on("TransferClaimed", (transferKey, recipient, token, amount) => { /* ... */ });
+// Resolution of transfers you sent or receive (filter by transferKey if you track it)
+vektes.on("TransferReleased", (transferKey, recipient, caller, token, amount) => { /* ... */ });
 vektes.on("TransferRejected", (transferKey, recipient, sender, token, amount) => { /* refund path */ });
+
+// Undeliverable payouts (see below)
+vektes.on("PayoutWrapped",  (beneficiary, amount) => { /* ETH arrived as WETH */ });
+vektes.on("PayoutDeferred", (beneficiary, token, amount) => { /* credited; beneficiary must withdraw() */ });
 ```
 
 ### Historical query
@@ -160,47 +165,69 @@ async function getScheduledSent(sender: string, fromBlock: number) {
 
 ---
 
-## Claiming & Rejecting (recipient)
+## Releasing & Rejecting
 
 ```typescript
-async function claimTransfer(sender: string, recipient: string, txCode: string) {
-  if (!(await vektes.isClaimable(sender, recipient, txCode))) {
+// Anyone may release once due — a platform can run this as a keeper for its users.
+async function releaseTransfer(sender: string, recipient: string, txCode: string) {
+  if (!(await vektes.isReleasable(sender, recipient, txCode))) {
     const t = await vektes.getTransfer(sender, recipient, txCode);
     if (t.amount === 0n) throw new Error("No such scheduled transfer");
-    if (t.claimed) throw new Error("Already claimed");
-    if (t.cancelled) throw new Error("Rejected");
+    if (t.released) throw new Error("Already released");
+    if (t.rejected) throw new Error("Rejected");
     throw new Error(`Not settled until ${t.settlementDate}`);
   }
-  return (await vektes.claim(sender, txCode)).wait(); // caller must be the recipient
+  return (await vektes.release(sender, recipient, txCode)).wait();
 }
 
-// batchClaim SKIPS non-claimable entries (does not revert the whole batch)
-async function claimAll(items: Array<{ sender: string; recipient: string; txCode: string }>) {
+// releaseMany SKIPS entries that aren't due/valid, and CREDITS undeliverable payouts — it never reverts on a bad entry.
+async function releaseAll(items: Array<{ sender: string; recipient: string; txCode: string }>) {
   const ready = [];
-  for (const t of items) if (await vektes.isClaimable(t.sender, t.recipient, t.txCode)) ready.push(t);
+  for (const t of items) if (await vektes.isReleasable(t.sender, t.recipient, t.txCode)) ready.push(t);
   if (!ready.length) return null;
-  return (await vektes.batchClaim(ready.map((t) => t.sender), ready.map((t) => t.txCode))).wait();
+  return (await vektes.releaseMany(ready.map(t => t.sender), ready.map(t => t.recipient), ready.map(t => t.txCode))).wait();
 }
 
+// Recipient only; any time before release. Refunds the sender in full (net + fee).
 async function rejectIncoming(sender: string, txCode: string) {
-  return (await vektes.rejectTransfer(sender, txCode)).wait(); // refunds the sender
+  return (await vektes.reject(sender, txCode)).wait();
 }
 ```
+
+---
+
+## Undeliverable Payouts
+
+A release, rejection or reclaim never reverts because the destination can't take the funds:
+
+- **ETH** to a contract without a payable `receive` is **wrapped to WETH and delivered** (`PayoutWrapped`). Nothing to do; the beneficiary holds WETH.
+- An **ERC-20** the token refuses to deliver (frozen/blocklisted address) is **credited** (`PayoutDeferred`); the beneficiary pulls it with `withdraw(token, to)` to any address.
+
+```typescript
+async function sweepCredits(tokens: string[]) {
+  for (const token of tokens) {
+    const credit = await vektes.withdrawable(signer.address, token);
+    if (credit > 0n) await (await vektes.withdraw(token, signer.address)).wait();
+  }
+}
+```
+
+> If your **recipient is a smart contract**, make sure it can hold WETH or call `withdraw`. Choosing a compatible destination is the sender's responsibility.
 
 ---
 
 ## Transfer Status State Machine
 
 ```typescript
-type TransferStatus = "delivered" | "pending" | "claimable" | "claimed" | "rejected";
+type TransferStatus = "delivered" | "pending" | "releasable" | "released" | "rejected";
 
 async function getStatus(sender: string, recipient: string, txCode: string): Promise<TransferStatus> {
   const t = await vektes.getTransfer(sender, recipient, txCode);
   if (t.amount === 0n) return "delivered"; // no record ⇒ it was an instant transfer (already delivered)
-  if (t.claimed) return "claimed";
-  if (t.cancelled) return "rejected";
+  if (t.released) return "released";
+  if (t.rejected) return "rejected";
   const now = Math.floor(Date.now() / 1000);
-  return now < Number(t.settlementDate) ? "pending" : "claimable";
+  return now < Number(t.settlementDate) ? "pending" : "releasable";
 }
 ```
 
@@ -221,7 +248,8 @@ try {
   switch (decoded?.name) {
     case "DuplicateTransactionCode": throw new Error("Code already used for this recipient.");
     case "TokenNotSupported":        throw new Error("This token isn't enabled on the protocol.");
-    case "ZeroAddress":              throw new Error("Invalid recipient address.");
+    case "ZeroAddress":
+    case "InvalidRecipient":         throw new Error("Invalid recipient address.");
     case "ZeroAmount":               throw new Error("Amount must be greater than zero.");
     case "FeeExceedsMax":            throw new Error("Fee moved above your cap — re-quote and retry.");
     case "StalePrice":
@@ -230,6 +258,50 @@ try {
     default: if (error.code === "INSUFFICIENT_FUNDS") throw new Error("Insufficient gas balance."); throw error;
   }
 }
+```
+
+---
+
+## Claim-by-link (no recipient address)
+
+Send to a **link** instead of an address: generate a throwaway keypair, lock the payment to its address, and share its private key as the link. The holder claims to any wallet by signing an EIP-712 `Claim` with `payoutTo` inside — so a copied signature can't be redirected. After `expiry`, only the sender's `reclaim` works.
+
+```typescript
+const key = ethers.Wallet.createRandom();               // the link IS this key
+const expiry = Math.floor(Date.now() / 1000) + 30 * 86400;
+await (await usdc.approve(VEKTES_ADDRESS, amount)).wait();
+await vektes.createClaimable(usdc.target, amount, txCode, key.address, expiry, maxFeeFor(amount));
+// share: key.privateKey + { sender, txCode }
+
+// Claimant side (any wallet pays gas; funds go to payoutTo):
+const domain = { name: "VektesProtocolV2", version: "2", chainId: 1, verifyingContract: VEKTES_ADDRESS };
+const types  = { Claim: [{ name: "sender", type: "address" }, { name: "claimAddr", type: "address" },
+                         { name: "txCode", type: "bytes32" }, { name: "payoutTo", type: "address" }] };
+const sig = await new ethers.Wallet(linkPrivateKey).signTypedData(domain, types, { sender, claimAddr: key.address, txCode, payoutTo });
+await vektes.claimTo(sender, key.address, txCode, payoutTo, sig);
+```
+
+Airdrop **campaigns** work the same way with one shared key and a fixed `amountPerClaim`, one claim per payout address (`createCampaign` / `claimCampaign` / `topUpCampaign` / `reclaimCampaign`).
+
+---
+
+## Recurring Allowances (subscriptions / direct debit)
+
+The customer authorises once; the merchant pulls a fixed amount each period from the customer's wallet. Nothing is escrowed — each pull draws on the customer's balance and standing approval, so it is best-effort like a card charge.
+
+```typescript
+// Customer: approve a standing allowance, then create the order (required end date, arrears cap)
+await (await usdc.approve(VEKTES_ADDRESS, ethers.MaxUint256)).wait();
+await vektes.createAllowance(usdc.target, merchant, 10_000_000n /* 10 USDC */, 30 * 86400 /* monthly */,
+                             0 /* first charge now */, oneYearFromNow, 3 /* maxArrears */, txCode);
+
+// Merchant: each cycle
+const [periodsDue, gross] = await vektes.previewAllowanceClaim(customer, merchant, txCode);
+if (periodsDue > 0n) await (await vektes.claimAllowance(customer, merchant, txCode, maxFeeFor(gross))).wait();
+
+// Customer: cancel (forfeits unclaimed periods) or renew
+await vektes.cancelAllowance(merchant, txCode);
+await vektes.extendAllowance(merchant, txCode, twoYearsFromNow);
 ```
 
 ---
@@ -250,14 +322,16 @@ vektes.on("TransferCreated", async (key, sender, recipient, token, amount, fee, 
     settlementDate: Number(settlementDate), status: "pending" });
 });
 
-vektes.on("TransferClaimed",  async (key) => { await db.transfers.update({ key }, { status: "claimed" }); });
+vektes.on("TransferReleased", async (key) => { await db.transfers.update({ key }, { status: "released" }); });
 vektes.on("TransferRejected", async (key) => { await db.transfers.update({ key }, { status: "rejected" }); });
 ```
+
+A keeper that calls `releaseMany` for due transfers is a natural addition to this loop — releases are permissionless.
 
 ---
 
 ## Next Steps
 
 - [Protocol Reference →](./protocol-reference.md) — full function signatures
-- [Fee Model →](./fee-model.md) — fees, `previewFee`, and `maxFeeVek`
+- [Fee Model →](./fee-model.md) — in-kind fees, `previewFee`, and `maxFee`
 - [Contract Addresses →](./contracts.md) — mainnet addresses and supported tokens
