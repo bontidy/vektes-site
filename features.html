@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vektes — Features</title>
-<meta name="description" content="Every feature of the Vektes settlement protocol: final & scheduled transfers, dedup codes, recipient rejection, in-kind fees, claim-by-link, airdrops, and recurring allowances. What's live (v1) and what's coming in v2." />
+<meta name="description" content="Every feature of the Vektes settlement protocol: final & scheduled transfers, dedup codes, recipient rejection, in-kind fees, claim-by-link, airdrops, and recurring allowances — all live in v2 on Ethereum mainnet." />
 <meta name="theme-color" content="#0c8f6b" />
 <link rel="canonical" href="https://vektes.com/features.html" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Vektes" />
 <meta property="og:url" content="https://vektes.com/features.html" />
 <meta property="og:title" content="Vektes — Features" />
-<meta property="og:description" content="Every feature of the Vektes settlement protocol — what's live in v1 and what's coming in v2." />
+<meta property="og:description" content="Every feature of the Vektes settlement protocol — live in v2 on Ethereum mainnet, CertiK-audited." />
 <meta property="og:image" content="https://vektes.com/og-image.png" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
 <style>
@@ -129,14 +129,14 @@
   <h1>Everything Vektes&nbsp;does</h1>
   <p class="lede">Vektes is a neutral settlement primitive for <b>final, scheduled, deduplicated</b> payments on Ethereum — embedded by platforms, usable directly. Here's the full feature set.</p>
   <div class="legend">
-    <span class="tag live"><span class="d"></span>Live · v1 mainnet</span>
-    <span class="tag v2"><span class="d"></span>v2 · built &amp; tested, pending re-audit</span>
+    <span class="tag live"><span class="d"></span>Core · since v1</span>
+    <span class="tag v2"><span class="d"></span>New in v2 · live on mainnet, CertiK-audited</span>
   </div>
 </div>
 
 <!-- CORE PRIMITIVES -->
 <section><div class="wrap sec">
-  <div class="sec-head"><div class="eyebrow">Core</div><h2>Settlement primitives</h2><span class="tag live"><span class="d"></span>Live · in v1 &amp; v2</span></div>
+  <div class="sec-head"><div class="eyebrow">Core</div><h2>Settlement primitives</h2><span class="tag live"><span class="d"></span>Live on mainnet</span></div>
   <p class="lede small">The building blocks every Vektes payment is made of.</p>
   <div class="grid">
     <div class="cell"><div class="lab">Assets</div><h3>Multi-asset transfers</h3><p>Native ETH, USDC, USDT and other curated ERC-20s.</p></div>
@@ -144,8 +144,8 @@
     <div class="cell"><div class="lab">Speed</div><h3>Instant transfers</h3><p>A zero settlement date delivers in the same transaction.</p></div>
     <div class="cell"><div class="lab">Escrow</div><h3>Scheduled settlement</h3><p>Hold funds on-chain until a future date — Net-30, payroll, milestones — no third party.</p></div>
     <div class="cell"><div class="lab">Finality</div><h3>Sender irrevocability</h3><p>Once sent, a payment can't be cancelled, reversed, or redirected. No chargebacks.</p></div>
-    <div class="cell"><div class="lab">Consent</div><h3>Recipient rejection</h3><p>The recipient can decline a pending transfer, auto-refunding the sender.</p></div>
-    <div class="cell"><div class="lab">Fees</div><h3>Volume-tiered, free tier</h3><p>Fee tier set by monthly USD volume (Chainlink-priced); free under $10K/month.</p></div>
+    <div class="cell"><div class="lab">Consent</div><h3>Recipient rejection</h3><p>The recipient can decline a scheduled transfer any time before release, auto-refunding the sender.</p></div>
+    <div class="cell"><div class="lab">Fees</div><h3>Volume-tiered, capped</h3><p>Tier set by monthly USD volume (Chainlink-priced), hard-capped at 1%. Every tier is 0% today.</p></div>
     <div class="cell"><div class="lab">Safety</div><h3>Curated &amp; solvent</h3><p>Standard ERC-20s only; balance-delta accounting stays solvent against odd tokens.</p></div>
     <div class="cell"><div class="lab">Controls</div><h3>Pausable, Safe-owned</h3><p>New transfers can be paused (exits never trap funds); owned by a 2-of-3 Gnosis Safe.</p></div>
   </div>
@@ -153,26 +153,27 @@
 
 <!-- V2 NEW -->
 <section><div class="wrap sec">
-  <div class="sec-head"><div class="eyebrow">Next</div><h2>New in v2</h2><span class="tag v2"><span class="d"></span>Built &amp; tested · pending re-audit</span></div>
+  <div class="sec-head"><div class="eyebrow">v2</div><h2>New in v2</h2><span class="tag v2"><span class="d"></span>Live since 11 Sep 2026 · CertiK audit-2.6.0</span></div>
   <p class="lede small">Two adoption barriers fixed — the claim-UX and the "must hold $VEK to pay a fee" friction — plus new ways to pay.</p>
   <div class="grid">
     <div class="cell v2"><div class="lab">§1 · Release</div><h3>Permissionless push-release</h3><p>After the date, anyone can push funds to the fixed recipient — no more "forgot to claim." Batch-release many at once.</p></div>
-    <div class="cell v2"><div class="lab">§5 · Fees</div><h3>In-kind fees + buy-and-burn</h3><p>The fee is taken in the asset you send (stablecoin/ETH), not $VEK. Accrued fees buy back and burn $VEK off-chain.</p></div>
-    <div class="cell v2"><div class="lab">§7 · Utility</div><h3>Free $VEK-to-$VEK</h3><p>Owner-flagged assets skip the oracle and fee entirely — real in-app $VEK utility, zero oracle risk.</p></div>
+    <div class="cell v2"><div class="lab">§5 · Fees</div><h3>In-kind fees</h3><p>Any fee is taken in the asset you send (stablecoin/ETH), never in $VEK, so nobody needs to hold $VEK to pay. Swept fees would fund an off-chain $VEK buy-and-burn (dormant while fees are 0).</p></div>
+    <div class="cell v2"><div class="lab">§7 · Utility</div><h3>Free $VEK-to-$VEK</h3><p>$VEK is flagged fee-exempt: VEK transfers skip the oracle and the fee entirely.</p></div>
     <div class="cell v2"><div class="lab">§4 · UX</div><h3>One-signature sends</h3><p>EIP-2612 permit: pay in a single signed action, no separate approval and no scary prompts.</p></div>
     <div class="cell v2"><div class="lab">§9 · Timing</div><h3>Shorten a due date</h3><p>The sender can bring a scheduled payment earlier (never later) — accelerate without breaking finality.</p></div>
     <div class="cell v2"><div class="lab">§10 · Links</div><h3>Send by link — no address</h3><p>Send to a shareable link; the recipient claims to any wallet. Front-run-safe, with sender-reclaim if a link is lost.</p></div>
     <div class="cell v2"><div class="lab">§11 · Airdrops</div><h3>Airdrop campaigns</h3><p>Fund one pool under a link; many recipients each claim a fixed amount, once per wallet. No wallets collected upfront.</p></div>
     <div class="cell v2"><div class="lab">§12 · Autopay</div><h3><a href="/subscriptions" style="color:inherit;text-decoration:none">Recurring subscriptions →</a></h3><p>Card-style crypto autopay: authorise once, the merchant charges a fixed amount each period. Immediate or scheduled first charge, a renewable term, cancel anytime — resumable if a cycle is short, with a grace cap so a dormant plan can't be back-charged in bulk. <a href="/subscriptions" style="color:var(--accent-ink)">Learn more →</a></p></div>
-    <div class="cell v2"><div class="lab">Launch</div><h3>Fee-free at start</h3><p>v2 launches with all tiers at 0 bps; fees + buy-and-burn stay dormant until switched on. $VEK, vesting &amp; liquidity unchanged.</p></div>
+    <div class="cell v2"><div class="lab">Launch</div><h3>Fee-free at launch</h3><p>v2 launched with every tier at 0 bps, and fees stay off until switched on, never above the 1% ceiling. $VEK, vesting &amp; liquidity are unchanged.</p></div>
   </div>
 </div></section>
 
 <!-- FEE MODEL -->
 <section><div class="wrap sec">
   <div class="sec-head"><div class="eyebrow">Fees</div><h2>How the fee works</h2></div>
-  <p class="feenote"><b>v1 (live):</b> the fee is charged separately in <b>$VEK</b> — the recipient always receives 100% of the transfer. Half is burned, half goes to the treasury.</p>
-  <p class="feenote"><b>v2:</b> the fee is taken <b>in the asset being transferred</b>, so users never need to hold $VEK. Fees accrue on-chain and are swept to the treasury; $VEK is then <b>bought back and burned</b> — the same value accrual, without the friction. Both keep the <b>free tier under $10K/month</b>.</p>
+  <p class="feenote"><b>Today, transfers are free:</b> every fee tier is set to 0 on-chain.</p>
+  <p class="feenote"><b>If fees are switched on</b>, the fee is taken <b>in the asset being transferred</b>, so users never need to hold $VEK, and the recipient receives the amount minus the fee. Rates are tiered by the sender's monthly USD volume, with a <b>free tier under $10K/month</b>, an <b>immutable 1% ceiling</b>, and a per-call <code>maxFee</code> the sender sets. Fees accrue on-chain and can only be swept to the treasury. <a href="/docs/fee-model.html" style="color:var(--accent-ink)">Full fee model →</a></p>
+  <p class="feenote" style="font-size:14px"><b>Legacy v1</b> (retired) charged fees separately in $VEK, half burned. That model no longer applies.</p>
 </div></section>
 
 <!-- TOKEN & ECOSYSTEM -->
@@ -186,9 +187,9 @@
       <li><b>Market</b> Uniswap v3 VEK/USDT pool.</li>
     </ul>
     <ul class="factlist">
-      <li><b>Audit</b> CertiK — v1 (audit-1.1.0): 0 Critical / 0 Major. v2 frozen for re-audit.</li>
+      <li><b>Audit</b> CertiK — v2 (audit-2.6.0): all code findings resolved, centralisation finding acknowledged. Mainnet bytecode matches the audited tag.</li>
       <li><b>Owner</b> 2-of-3 Gnosis Safe multisig.</li>
-      <li><b>App</b> Public dApp at app.vektes.com.</li>
+      <li><b>App</b> app.vektes.com (temporarily offline; the contracts can be used directly).</li>
       <li><b>Platform</b> Alaru settles gig-work payouts through Vektes.</li>
     </ul>
   </div>
@@ -214,7 +215,7 @@
       <a href="/Vektes_Protocol_Whitepaper.pdf" target="_blank" rel="noopener">Whitepaper</a>
     </div>
   </div>
-  <div class="disc"><b>Disclaimer.</b> Vektes is experimental protocol software provided “as is”, without warranties. Nothing here is financial, legal, or tax advice. On-chain transactions are irreversible; the bare protocol is finality-only and offers no recourse if a counterparty fails to deliver. v2 features are in development and pending audit — details may change.</div>
+  <div class="disc"><b>Disclaimer.</b> Vektes is experimental protocol software provided “as is”, without warranties. Nothing here is financial, legal, or tax advice. On-chain transactions are irreversible; the bare protocol is finality-only and offers no recourse if a counterparty fails to deliver. v2 is live on mainnet and CertiK-audited; an audit does not eliminate risk.</div>
 </div></footer>
 
 </body>

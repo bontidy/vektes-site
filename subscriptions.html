@@ -4,14 +4,14 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Vektes — On-chain Subscriptions</title>
-<meta name="description" content="Recurring payments on Ethereum: card-style autopay that's non-custodial, censorship-resistant, and final. Authorise once, get charged each cycle — no processor, no chargebacks, no middleman. Coming in Vektes v2." />
+<meta name="description" content="Recurring payments on Ethereum: card-style autopay that's non-custodial, censorship-resistant, and final. Authorise once, get charged each cycle — no processor, no chargebacks, no middleman. Live in Vektes v2." />
 <meta name="theme-color" content="#0c8f6b" />
 <link rel="canonical" href="https://vektes.com/subscriptions" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Vektes" />
 <meta property="og:url" content="https://vektes.com/subscriptions" />
 <meta property="og:title" content="Vektes — On-chain Subscriptions" />
-<meta property="og:description" content="Stripe-style subscriptions, but on-chain: non-custodial, censorship-resistant, final. Coming in Vektes v2." />
+<meta property="og:description" content="Stripe-style subscriptions, but on-chain: non-custodial, censorship-resistant, final. Live in Vektes v2." />
 <meta property="og:image" content="https://vektes.com/og-image.png" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230C8F6B'/%3E%3Ctext x='50' y='72' font-size='64' text-anchor='middle' fill='white' font-family='monospace' font-weight='bold'%3EV%3C/text%3E%3C/svg%3E" />
 <style>
@@ -136,7 +136,7 @@
     <a class="link" href="/docs/">Docs</a>
     <a class="link" href="/#fees">Fees</a>
     <a class="link" href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
-    <span class="pill"><span class="live"></span>v2 · pending re-audit</span>
+    <span class="pill"><span class="live"></span>Live on mainnet · v2</span>
   </div>
 </header>
 
@@ -150,7 +150,7 @@
     <a class="btn" href="/docs/">Read the docs</a>
   </div>
   <div class="legend">
-    <span class="tag v2"><span class="d"></span>Coming to mainnet in v2 · pending re-audit · live on Sepolia to try</span>
+    <span class="tag v2"><span class="d"></span>Live on mainnet in v2 · CertiK-audited · try it on Sepolia</span>
   </div>
 </div>
 
@@ -161,7 +161,7 @@
   <div class="steps">
     <div class="step"><div class="n">01</div><h3>Authorise once</h3><p>The customer approves the amount and signs up for the plan — a one-time on-chain authorisation. The merchant address is fixed and can never be changed.</p></div>
     <div class="step"><div class="n">02</div><h3>Charge each cycle</h3><p>Each period the merchant pulls the fixed amount from the customer's wallet. Charge upfront or on a set date; a future start makes a built-in <b>free trial</b>.</p></div>
-    <div class="step"><div class="n">03</div><h3>Cancel or renew anytime</h3><p>The customer cancels whenever they want; the merchant can extend the term to renew. A fixed term is required up front (no forever-authorisations).</p></div>
+    <div class="step"><div class="n">03</div><h3>Cancel or renew anytime</h3><p>The customer cancels whenever they want, and can extend the term to renew. A fixed term is required up front (no forever-authorisations).</p></div>
   </div>
 </div></section>
 
@@ -176,7 +176,7 @@
         <tr><td>Card on file</td><td>The customer authorises once with a standing on-chain allowance — no card, no vault.</td></tr>
         <tr><td>Charge on a schedule</td><td>The merchant charges a fixed amount each period, pulled from the customer's wallet.</td></tr>
         <tr><td>Free trial</td><td>Set the first charge in the future — the trial period is built in.</td></tr>
-        <tr><td>Fixed term &amp; renewal</td><td>Every plan has a required end date; the merchant can extend it to renew.</td></tr>
+        <tr><td>Fixed term &amp; renewal</td><td>Every plan has a required end date; the customer can extend it to renew.</td></tr>
         <tr><td>Declined payment → retry</td><td>If a wallet is short one cycle, the charge is <b>resumable</b> — it collects what it can and retries next time.</td></tr>
         <tr><td>No runaway back-charges</td><td>A grace cap means a long-dormant plan can never be drained for months of arrears at once.</td></tr>
         <tr><td>Cancel anytime</td><td>The customer cancels on-chain; unclaimed cycles are forfeited — no surprise final bill.</td></tr>
@@ -202,7 +202,7 @@
 <section><div class="wrap sec">
   <div class="sec-head"><div class="eyebrow">Straight talk</div><h2>What it is — and isn't</h2></div>
   <p class="feenote"><b>It's a direct debit, not a credit card.</b> Funds must exist in the customer's wallet at charge time — there's no credit line and no chargeback path. That's the trade for finality and self-custody.</p>
-  <p class="feenote"><b>Fixed price, stablecoins, one merchant.</b> Today it's a fixed amount per period in a curated ERC-20 (or ETH), to a named recipient. Usage-based / variable billing is a future extension.</p>
+  <p class="feenote"><b>Fixed price, stablecoins, one merchant.</b> Today it's a fixed amount per period in a curated ERC-20 (not native ETH), to a named recipient. Usage-based / variable billing is a future extension.</p>
   <p class="feenote"><b>The merchant charges; the customer stays in control.</b> The customer authorises up front, can cancel anytime, and older uncollected cycles lapse automatically — so a plan can never quietly accumulate a giant bill.</p>
 </div></section>
 
@@ -213,13 +213,13 @@
   <pre><code><span class="cmt">// customer authorises a plan (fixed amount per period, required end date)</span>
 <span class="fn">createAllowance</span>(token, merchant, amountPerPeriod, periodLength, startTime, endTime, maxArrears, planCode)
 
-<span class="cmt">// merchant charges the cycles due (resumable, capped by maxArrears)</span>
-<span class="fn">claimAllowance</span>(customer, merchant, planCode)
+<span class="cmt">// merchant charges the cycles due (resumable, capped by maxArrears; maxFee caps any fee)</span>
+<span class="fn">claimAllowance</span>(customer, merchant, planCode, maxFee)
 
-<span class="cmt">// merchant renews by pushing the end date out</span>
+<span class="cmt">// customer renews by pushing the end date out</span>
 <span class="fn">extendAllowance</span>(merchant, planCode, newEndTime)
 
-<span class="cmt">// customer (or merchant) cancels — no further charges</span>
+<span class="cmt">// customer cancels — no further charges</span>
 <span class="fn">cancelAllowance</span>(merchant, planCode)</code></pre>
   <div class="cta" style="display:flex;gap:12px;margin-top:22px;flex-wrap:wrap">
     <a class="btn primary" href="/docs/">Documentation</a>
@@ -240,7 +240,7 @@
       <a href="https://app.vektes.com" target="_blank" rel="noopener">App ↗</a>
     </div>
   </div>
-  <div class="disc"><b>Disclaimer.</b> On-chain subscriptions are a <b>v2 feature in development, pending audit</b> — details may change and nothing here is a commitment to ship on any date. Vektes is experimental protocol software provided “as is”, without warranties, and nothing here is financial, legal, or tax advice. It is a debit-style primitive: charges pull from the customer's existing balance, settlement is final, and there is no chargeback or refund mechanism at the protocol layer.</div>
+  <div class="disc"><b>Disclaimer.</b> On-chain subscriptions are a <b>v2 feature, live on Ethereum mainnet and CertiK-audited</b>; an audit does not eliminate risk. Vektes is experimental protocol software provided “as is”, without warranties, and nothing here is financial, legal, or tax advice. It is a debit-style primitive: charges pull from the customer's existing balance, settlement is final, and there is no chargeback or refund mechanism at the protocol layer.</div>
 </div></footer>
 
 </body>

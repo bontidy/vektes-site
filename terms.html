@@ -27,7 +27,7 @@
   <div class="legal-hero">
     <span class="eyebrow">Legal</span>
     <h1>Terms of Service</h1>
-    <div class="meta">Vektes Protocol · Last updated <b>August 20, 2026</b></div>
+    <div class="meta">Vektes Protocol · Last updated <b>November 11, 2026</b></div>
   </div>
 
   <nav class="subnav" aria-label="Legal documents">
@@ -51,12 +51,12 @@
 
     <h2>3. $VEK Token</h2>
     <h3>3.1 Utility Token</h3>
-    <p>$VEK is a utility token used exclusively for:</p>
+    <p>$VEK is the native token of the Vektes Protocol. Its uses are limited to:</p>
     <ul>
-      <li>Paying protocol service fees on the Vektes Protocol</li>
+      <li>Transferring value through the Protocol as a supported settlement asset, on which no protocol fee is charged ($VEK is fee-exempt)</li>
       <li>Participating in protocol governance (when implemented)</li>
-      <li>Network gas fees on the Vektes network (when applicable)</li>
     </ul>
+    <p>Protocol fees are not paid in $VEK (see Section 7).</p>
     <h3>3.2 No Investment Contract</h3>
     <p>$VEK is not an investment, security, share, equity, debt, loan, or equivalent in any jurisdiction. Acquiring $VEK does not grant any rights to:</p>
     <ul>
@@ -66,7 +66,7 @@
       <li>Claims against any person or entity</li>
     </ul>
     <h3>3.3 No Expectation of Profit</h3>
-    <p>You acknowledge that you are acquiring or using $VEK solely for its consumptive utility within the Protocol and not as a speculative investment. The fee-burning mechanism exists to manage token supply as a protocol parameter, not to generate profits for holders.</p>
+    <p>You acknowledge that you are acquiring or using $VEK solely for its consumptive utility within the Protocol and not as a speculative investment. The Protocol contract does not burn $VEK. Any future reduction of $VEK supply funded from protocol fees would be a supply-management decision, not a promise of profit to holders.</p>
 
     <h2>4. Eligibility</h2>
     <h3>4.1 General Requirements</h3>
@@ -102,19 +102,19 @@
     <h3>6.1 Irrevocability</h3>
     <p>Transfers submitted through the Vektes Protocol are <strong>irrevocable by the sender</strong> once confirmed on-chain. There is no chargeback, cancellation, or reversal mechanism available to senders. You acknowledge this is a core design feature, not a defect.</p>
     <h3>6.2 Recipient Rejection</h3>
-    <p>Recipients may reject pending (unsettled) transfers, which returns funds to the sender. This is the only mechanism by which a transfer can be reversed, and it is solely at the recipient's discretion.</p>
+    <p>Recipients may reject a scheduled transfer at any time before it is released, which returns the full amount to the sender. This is the only mechanism by which a transfer can be reversed, and it is solely at the recipient's discretion.</p>
     <h3>6.3 Settlement Dates</h3>
-    <p>Funds locked with a future settlement date cannot be accessed by the recipient until that date passes. The Protocol enforces this programmatically. Neither we nor any third party can accelerate or modify settlement dates.</p>
+    <p>Funds locked with a future settlement date cannot be released to the recipient until that date passes; after that, anyone may release them to the fixed recipient. The Protocol enforces this programmatically. Only the sender may bring a settlement date earlier, and no one can push it later or change the recipient. Neither we nor any third party can modify settlement dates.</p>
     <h3>6.4 Transaction Codes</h3>
     <p>Each transaction code is unique per sender-recipient pair. Once used, a code cannot be reused for the same pair. Ensure you use meaningful, unique codes for each transfer.</p>
 
     <h2>7. Fees</h2>
     <h3>7.1 Protocol Fees</h3>
-    <p>The Protocol charges tiered fees based on monthly sender volume, paid in $VEK. Current fee tiers are displayed on the Interface and enforced by the smart contract. Fee tiers may be modified through governance.</p>
+    <p>The Protocol can charge tiered fees based on the sender's monthly transfer volume. Any fee is taken in the asset being transferred, never in $VEK, and the recipient receives the transferred amount less that fee. <strong>All fee tiers are currently set to zero</strong>, so no protocol fee is charged. Fee tiers may be changed by the protocol owner, but the smart contract enforces an immutable maximum of 1% of the amount transferred. Current tiers can be read directly from the smart contract.</p>
     <h3>7.2 Gas Fees</h3>
     <p>All blockchain transactions require gas fees paid to Ethereum validators. These fees are separate from Protocol fees and are not controlled by or payable to us.</p>
     <h3>7.3 Fee Cap Protection</h3>
-    <p>The Protocol includes a maximum-fee-cap mechanism. You will never be charged more than the fee cap you specify at the time of the transaction, regardless of $VEK price fluctuations.</p>
+    <p>The Protocol includes a maximum-fee-cap mechanism. When you specify a maximum fee for a transaction, you will never be charged more than that amount; if the fee would exceed it, the transaction fails rather than charging you more.</p>
 
     <h2>8. Risks</h2>
     <h3>8.1 Blockchain Risks</h3>
@@ -199,7 +199,7 @@
       </div>
     </div>
     <p class="disc">
-      <b>Experimental software, provided "as is" without warranty.</b> $VEK is a utility token used to pay protocol fees — it is not an investment product.
+      <b>Experimental software, provided "as is" without warranty.</b> $VEK is the protocol's native token — it is not an investment product.
       Nothing on this page is an offer or solicitation to buy or sell any token or security, and nothing here is financial, investment, legal, or tax advice.
       Interacting with the protocol carries risk, including the total loss of funds. © 2026 Vektes.
     </p>

@@ -324,8 +324,8 @@
         </div>
         <div class="cell">
           <div class="lab"><span class="n">06</span> Economics</div>
-          <h3>Fees in $VEK</h3>
-          <p>Tiered by USD volume, priced via an on-chain oracle and paid in $VEK. Recipients always receive the full amount.</p>
+          <h3>In-kind, capped fees</h3>
+          <p>Any fee is a small percentage of the asset you send, tiered by monthly USD volume and hard-capped at 1% on-chain. Every tier is 0% today.</p>
         </div>
       </div>
     </div>
@@ -341,7 +341,7 @@
         <div class="step">
           <div class="num">STEP 01</div>
           <h3>Send</h3>
-          <p>Call <code>send(token, to, amount, txCode, settlementDate)</code>. Funds are debited and locked; the code is now spent.</p>
+          <p>Call <code>send(token, to, amount, txCode, settlementDate, maxFee)</code>. Funds are debited and locked; the code is now spent.</p>
         </div>
         <div class="step">
           <div class="num">STEP 02</div>
@@ -350,8 +350,8 @@
         </div>
         <div class="step">
           <div class="num">STEP 03</div>
-          <h3>Claim or reject</h3>
-          <p>After the date, the recipient calls <code>claim</code> to receive funds — or <code>rejectTransfer</code> to decline and refund the sender.</p>
+          <h3>Release or reject</h3>
+          <p>Once the date passes, anyone can call <code>release</code> to push the funds to the fixed recipient. Until it is released, the recipient can call <code>reject</code> to decline and refund the sender.</p>
         </div>
       </div>
     </div>
@@ -361,11 +361,11 @@
     <div class="wrap sec">
       <div class="sec-head">
         <span class="eyebrow">Fee model</span>
-        <h2>Free for small transfers. Minimal at scale.</h2>
+        <h2>Free today. Minimal and capped at scale.</h2>
       </div>
       <div class="tablecard">
         <table>
-          <thead><tr><th>Monthly volume · per sender</th><th class="r">Protocol fee</th><th class="r">On a $50K transfer</th></tr></thead>
+          <thead><tr><th>Monthly volume · per sender</th><th class="r">Standard rate · not active</th><th class="r">On a $50K transfer</th></tr></thead>
           <tbody>
             <tr><td>$0 – $10,000</td><td class="r">0% · free</td><td class="r tnum">$0.00</td></tr>
             <tr><td>$10,000 – $100,000</td><td class="r tnum">0.005%</td><td class="r tnum">$2.50</td></tr>
@@ -374,7 +374,7 @@
           </tbody>
         </table>
       </div>
-      <p class="feenote">Fees are charged <b>in $VEK</b>, separate from the transfer, so the <b>recipient always receives the full amount</b>. Senders preview the exact fee and pass a maximum-fee cap, so a moving price feed can never charge more than they approved. Half of each fee is burned, half goes to the treasury.</p>
+      <p class="feenote"><b>Every tier is 0% on-chain today</b>, so transfers are free. The table shows the standard schedule the owner multisig could switch on later. Any fee is taken <b>in the asset being sent</b>, never in $VEK, and the recipient receives the amount minus that fee. An immutable on-chain ceiling means no fee can ever exceed <b>1%</b>, and each sender passes a <code>maxFee</code> cap, so they are never charged more than they approved. $VEK transfers are always fee-exempt.</p>
     </div>
   </section>
 
@@ -382,25 +382,22 @@
     <div class="wrap sec">
       <div class="sec-head">
         <span class="eyebrow">The token</span>
-        <h2>$VEK — the settlement fee token.</h2>
+        <h2>$VEK — the protocol token.</h2>
       </div>
       <div class="cols">
         <div>
           <ul class="factlist">
             <li><b>Standard</b><span>ERC-20 + ERC-2612 permit, burnable</span></li>
             <li><b>Supply</b><span>1,000,000,000 — fixed, no minting after deploy</span></li>
-            <li><b>Uses</b><span>Paying protocol fees, network gas, governance</span></li>
+            <li><b>On the protocol</b><span>A supported, fee-exempt settlement asset (VEK transfers are always free)</span></li>
             <li><b>Governance</b><span>Owner is a multisig; on-chain governance on the roadmap</span></li>
           </ul>
         </div>
         <div>
           <ul class="alloc">
-            <li><span class="pct tnum">40%</span><span class="who">Community &amp; ecosystem</span><span class="tnum">400M</span><span class="bar"><i style="width:100%"></i></span></li>
-            <li><span class="pct tnum">25%</span><span class="who">Treasury / DAO</span><span class="tnum">250M</span><span class="bar"><i style="width:62%"></i></span></li>
-            <li><span class="pct tnum">15%</span><span class="who">Founding team</span><span class="tnum">150M</span><span class="bar"><i style="width:37%"></i></span></li>
-            <li><span class="pct tnum">10%</span><span class="who">Liquidity</span><span class="tnum">100M</span><span class="bar"><i style="width:25%"></i></span></li>
-            <li><span class="pct tnum">7%</span><span class="who">Early supporters</span><span class="tnum">70M</span><span class="bar"><i style="width:17%"></i></span></li>
-            <li><span class="pct tnum">3%</span><span class="who">Advisors</span><span class="tnum">30M</span><span class="bar"><i style="width:8%"></i></span></li>
+            <li><span class="pct tnum">74%</span><span class="who">Treasury reserve (2-of-3 Safe)</span><span class="tnum">~740M</span><span class="bar"><i style="width:100%"></i></span></li>
+            <li><span class="pct tnum">25%</span><span class="who">Team &amp; insider vesting (UNCX)</span><span class="tnum">250M</span><span class="bar"><i style="width:34%"></i></span></li>
+            <li><span class="pct tnum">~1%</span><span class="who">Liquidity (locked) &amp; public float</span><span class="tnum">~10M</span><span class="bar"><i style="width:2%"></i></span></li>
           </ul>
         </div>
       </div>
@@ -495,7 +492,7 @@
       </div>
     </div>
     <p class="disc">
-      <b>Experimental software, provided "as is" without warranty.</b> $VEK is a utility token used to pay protocol fees — it is not an investment product.
+      <b>Experimental software, provided "as is" without warranty.</b> $VEK is the protocol's native token — it is not an investment product.
       Nothing on this page is an offer or solicitation to buy or sell any token or security, and nothing here is financial, investment, legal, or tax advice.
       Interacting with the protocol carries risk, including the total loss of funds. Features and tokenomics are subject to change. Do your own research. © 2026 Vektes.
     </p>
